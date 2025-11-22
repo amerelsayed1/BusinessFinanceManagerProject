@@ -13,11 +13,13 @@ class Bill extends Model
         'status',
         'account_id',
         'image',
+        'is_monthly',
     ];
 
     protected $casts = [
         'amount' => 'float',
         'date'   => 'date',
+        'is_monthly' => 'boolean',
     ];
 
     public function account()

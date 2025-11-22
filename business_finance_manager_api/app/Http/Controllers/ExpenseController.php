@@ -31,10 +31,27 @@ class ExpenseController extends Controller
                 'date'       => $exp->date->format('Y-m-d'),
                 'category'   => $exp->category,
                 'accountId'  => $exp->account_id,
+                'isAds'      => $exp->is_ads,
             ];
         });
 
         return response()->json($expenses);
+    }
+
+    public function show(int $id): JsonResponse
+    {
+        $expense = Expense::with('account:id,name')->findOrFail($id);
+
+        return response()->json([
+            'id'         => $expense->id,
+            'description'=> $expense->description,
+            'amount'     => $expense->amount,
+            'date'       => $expense->date->format('Y-m-d'),
+            'category'   => $expense->category,
+            'accountId'  => $expense->account_id,
+            'accountName'=> $expense->account->name,
+            'isAds'      => $expense->is_ads,
+        ]);
     }
 
     public function store(Request $request): JsonResponse
@@ -45,6 +62,7 @@ class ExpenseController extends Controller
             'date'        => 'required|date',
             'category'    => 'nullable|string',
             'accountId'   => 'required|integer|exists:accounts,id',
+            'isAds'       => 'nullable|boolean',
         ]);
 
         return DB::transaction(function () use ($data) {
@@ -54,9 +72,10 @@ class ExpenseController extends Controller
                 'date'        => $data['date'],
                 'category'    => $data['category'] ?? null,
                 'account_id'  => $data['accountId'],
+                'is_ads'      => $data['isAds'] ?? false,
             ]);
 
-            $account = Account::findOrFail($data['accountId']);
+            $account = Account::lockForUpdate()->findOrFail($data['accountId']);
             $account->balance -= $data['amount'];
             $account->save();
 
@@ -67,15 +86,66 @@ class ExpenseController extends Controller
                 'date'       => $expense->date->format('Y-m-d'),
                 'category'   => $expense->category,
                 'accountId'  => $expense->account_id,
+                'isAds'      => $expense->is_ads,
             ], 201);
+        });
+    }
+
+    public function update(Request $request, int $id): JsonResponse
+    {
+        $data = $request->validate([
+            'description' => 'sometimes|required|string',
+            'amount'      => 'sometimes|required|numeric|min:0.01',
+            'date'        => 'sometimes|required|date',
+            'category'    => 'nullable|string',
+            'accountId'   => 'sometimes|required|integer|exists:accounts,id',
+            'isAds'       => 'nullable|boolean',
+        ]);
+
+        return DB::transaction(function () use ($data, $id) {
+            $expense = Expense::lockForUpdate()->findOrFail($id);
+            $oldAmount = $expense->amount;
+            $oldAccountId = $expense->account_id;
+
+            // Revert old account balance
+            $oldAccount = Account::lockForUpdate()->findOrFail($oldAccountId);
+            $oldAccount->balance += $oldAmount;
+            $oldAccount->save();
+
+            // Update expense
+            $updateData = [];
+            if (isset($data['description'])) $updateData['description'] = $data['description'];
+            if (isset($data['amount'])) $updateData['amount'] = $data['amount'];
+            if (isset($data['date'])) $updateData['date'] = $data['date'];
+            if (isset($data['category'])) $updateData['category'] = $data['category'];
+            if (isset($data['accountId'])) $updateData['account_id'] = $data['accountId'];
+            if (isset($data['isAds'])) $updateData['is_ads'] = $data['isAds'];
+
+            $expense->update($updateData);
+            $expense->refresh();
+
+            // Apply new amount to account (could be same or different account)
+            $newAccount = Account::lockForUpdate()->findOrFail($expense->account_id);
+            $newAccount->balance -= $expense->amount;
+            $newAccount->save();
+
+            return response()->json([
+                'id'         => $expense->id,
+                'description'=> $expense->description,
+                'amount'     => $expense->amount,
+                'date'       => $expense->date->format('Y-m-d'),
+                'category'   => $expense->category,
+                'accountId'  => $expense->account_id,
+                'isAds'      => $expense->is_ads,
+            ], 200);
         });
     }
 
     public function destroy(int $id): JsonResponse
     {
         return DB::transaction(function () use ($id) {
-            $expense = Expense::findOrFail($id);
-            $account = $expense->account;
+            $expense = Expense::lockForUpdate()->findOrFail($id);
+            $account = Account::lockForUpdate()->find($expense->account_id);
 
             if ($account) {
                 $account->balance += $expense->amount;
@@ -84,7 +154,51 @@ class ExpenseController extends Controller
 
             $expense->delete();
 
-            return response()->json(['success' => true]);
+            return response()->json(['success' => true, 'message' => 'Expense deleted successfully']);
         });
+    }
+
+    public function getByCategory(Request $request): JsonResponse
+    {
+        $month = $request->query('month'); // 'YYYY-MM'
+
+        $query = Expense::query();
+
+        if ($month) {
+            $query->whereRaw("to_char(date, 'YYYY-MM') = ?", [$month]);
+        }
+
+        $expenses = $query->get()->groupBy('category')->map(function ($items, $category) {
+            return [
+                'category' => $category ?? 'Uncategorized',
+                'total' => $items->sum('amount'),
+                'count' => $items->count(),
+            ];
+        })->values();
+
+        return response()->json($expenses);
+    }
+
+    public function getTotalByAccount(Request $request): JsonResponse
+    {
+        $month = $request->query('month'); // 'YYYY-MM'
+
+        $query = Expense::query()->with('account:id,name');
+
+        if ($month) {
+            $query->whereRaw("to_char(date, 'YYYY-MM') = ?", [$month]);
+        }
+
+        $expenses = $query->get()->groupBy('account_id')->map(function ($items) {
+            $account = $items->first()->account;
+            return [
+                'accountId' => $account->id,
+                'accountName' => $account->name,
+                'total' => $items->sum('amount'),
+                'count' => $items->count(),
+            ];
+        })->values();
+
+        return response()->json($expenses);
     }
 }

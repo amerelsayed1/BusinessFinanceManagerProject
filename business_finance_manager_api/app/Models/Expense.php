@@ -12,11 +12,14 @@ class Expense extends Model
         'date',
         'category',
         'account_id',
+        'is_ads',
+
     ];
 
     protected $casts = [
         'amount' => 'float',
         'date'   => 'date',
+        'is_ads' => 'boolean',
     ];
 
     public function account()
