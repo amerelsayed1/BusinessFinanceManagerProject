@@ -10,25 +10,50 @@ use Illuminate\Support\Facades\DB;
 
 class BillController extends Controller
 {
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
-        $bills = Bill::with('account:id,name')
+        $status = $request->query('status'); // 'pending' or 'paid'
+
+        $query = Bill::with('account:id,name')
             ->orderBy('date', 'desc')
-            ->orderBy('id', 'desc')
-            ->get()
-            ->map(function ($bill) {
-                return [
-                    'id'        => $bill->id,
-                    'description' => $bill->description,
-                    'amount'    => $bill->amount,
-                    'date'      => $bill->date->format('Y-m-d'),
-                    'status'    => $bill->status,
-                    'accountId' => $bill->account_id,
-                    'image'     => $bill->image,
-                ];
-            });
+            ->orderBy('id', 'desc');
+
+        if ($status) {
+            $query->where('status', $status);
+        }
+
+        $bills = $query->get()->map(function ($bill) {
+            return [
+                'id'          => $bill->id,
+                'description' => $bill->description,
+                'amount'      => $bill->amount,
+                'date'        => $bill->date->format('Y-m-d'),
+                'status'      => $bill->status,
+                'accountId'   => $bill->account_id,
+                'accountName' => $bill->account->name ?? null,
+                'image'       => $bill->image,
+                'isMonthly'   => $bill->is_monthly,
+            ];
+        });
 
         return response()->json($bills);
+    }
+
+    public function show(int $id): JsonResponse
+    {
+        $bill = Bill::with('account:id,name')->findOrFail($id);
+
+        return response()->json([
+            'id'          => $bill->id,
+            'description' => $bill->description,
+            'amount'      => $bill->amount,
+            'date'        => $bill->date->format('Y-m-d'),
+            'status'      => $bill->status,
+            'accountId'   => $bill->account_id,
+            'accountName' => $bill->account->name,
+            'image'       => $bill->image,
+            'isMonthly'   => $bill->is_monthly,
+        ]);
     }
 
     public function store(Request $request): JsonResponse
@@ -40,6 +65,7 @@ class BillController extends Controller
             'status'      => 'required|string|in:pending,paid',
             'accountId'   => 'required|integer|exists:accounts,id',
             'image'       => 'nullable|string',
+            'isMonthly'   => 'nullable|boolean',
         ]);
 
         return DB::transaction(function () use ($data) {
@@ -50,31 +76,91 @@ class BillController extends Controller
                 'status'      => $data['status'],
                 'account_id'  => $data['accountId'],
                 'image'       => $data['image'] ?? null,
+                'is_monthly'  => $data['isMonthly'] ?? false,
             ]);
 
             if ($data['status'] === 'paid') {
-                $account = Account::findOrFail($data['accountId']);
+                $account = Account::lockForUpdate()->findOrFail($data['accountId']);
                 $account->balance -= $data['amount'];
                 $account->save();
             }
 
             return response()->json([
-                'id'        => $bill->id,
+                'id'          => $bill->id,
                 'description' => $bill->description,
-                'amount'    => $bill->amount,
-                'date'      => $bill->date->format('Y-m-d'),
-                'status'    => $bill->status,
-                'accountId' => $bill->account_id,
-                'image'     => $bill->image,
+                'amount'      => $bill->amount,
+                'date'        => $bill->date->format('Y-m-d'),
+                'status'      => $bill->status,
+                'accountId'   => $bill->account_id,
+                'image'       => $bill->image,
+                'isMonthly'   => $bill->is_monthly,
             ], 201);
+        });
+    }
+
+    public function update(Request $request, int $id): JsonResponse
+    {
+        $data = $request->validate([
+            'description' => 'sometimes|required|string',
+            'amount'      => 'sometimes|required|numeric|min:0.01',
+            'date'        => 'sometimes|required|date',
+            'status'      => 'sometimes|required|string|in:pending,paid',
+            'accountId'   => 'sometimes|required|integer|exists:accounts,id',
+            'image'       => 'nullable|string',
+            'isMonthly'   => 'nullable|boolean',
+        ]);
+
+        return DB::transaction(function () use ($data, $id) {
+            $bill = Bill::lockForUpdate()->findOrFail($id);
+            $oldStatus = $bill->status;
+            $oldAmount = $bill->amount;
+            $oldAccountId = $bill->account_id;
+
+            // If status is changing or amount/account is changing and was paid, revert old balance
+            if ($oldStatus === 'paid' && (isset($data['amount']) || isset($data['accountId']))) {
+                $oldAccount = Account::lockForUpdate()->findOrFail($oldAccountId);
+                $oldAccount->balance += $oldAmount;
+                $oldAccount->save();
+            }
+
+            // Update bill
+            $updateData = [];
+            if (isset($data['description'])) $updateData['description'] = $data['description'];
+            if (isset($data['amount'])) $updateData['amount'] = $data['amount'];
+            if (isset($data['date'])) $updateData['date'] = $data['date'];
+            if (isset($data['status'])) $updateData['status'] = $data['status'];
+            if (isset($data['accountId'])) $updateData['account_id'] = $data['accountId'];
+            if (isset($data['image'])) $updateData['image'] = $data['image'];
+            if (isset($data['isMonthly'])) $updateData['is_monthly'] = $data['isMonthly'];
+
+            $bill->update($updateData);
+            $bill->refresh();
+
+            // Apply new amount if bill is paid
+            if ($bill->status === 'paid') {
+                $newAccount = Account::lockForUpdate()->findOrFail($bill->account_id);
+                $newAccount->balance -= $bill->amount;
+                $newAccount->save();
+            }
+
+            return response()->json([
+                'id'          => $bill->id,
+                'description' => $bill->description,
+                'amount'      => $bill->amount,
+                'date'        => $bill->date->format('Y-m-d'),
+                'status'      => $bill->status,
+                'accountId'   => $bill->account_id,
+                'image'       => $bill->image,
+                'isMonthly'   => $bill->is_monthly,
+            ], 200);
         });
     }
 
     public function destroy(int $id): JsonResponse
     {
         return DB::transaction(function () use ($id) {
-            $bill = Bill::findOrFail($id);
-            $account = $bill->account;
+            $bill = Bill::lockForUpdate()->findOrFail($id);
+            $account = Account::lockForUpdate()->find($bill->account_id);
 
             if ($bill->status === 'paid' && $account) {
                 $account->balance += $bill->amount;
@@ -83,7 +169,7 @@ class BillController extends Controller
 
             $bill->delete();
 
-            return response()->json(['success' => true]);
+            return response()->json(['success' => true, 'message' => 'Bill deleted successfully']);
         });
     }
 
@@ -94,18 +180,18 @@ class BillController extends Controller
         ]);
 
         return DB::transaction(function () use ($data, $id) {
-            $bill = Bill::findOrFail($id);
+            $bill = Bill::lockForUpdate()->findOrFail($id);
             $oldStatus = $bill->status;
             $newStatus = $data['status'];
 
             if ($oldStatus === $newStatus) {
-                return response()->json(['success' => true]);
+                return response()->json(['success' => true, 'message' => 'Status unchanged']);
             }
 
             $bill->status = $newStatus;
             $bill->save();
 
-            $account = $bill->account;
+            $account = Account::lockForUpdate()->find($bill->account_id);
 
             if ($account) {
                 if ($oldStatus !== 'paid' && $newStatus === 'paid') {
@@ -116,7 +202,46 @@ class BillController extends Controller
                 $account->save();
             }
 
-            return response()->json(['success' => true]);
+            return response()->json(['success' => true, 'message' => 'Status updated successfully']);
         });
+    }
+
+    public function getPending(): JsonResponse
+    {
+        $bills = Bill::with('account:id,name')
+            ->where('status', 'pending')
+            ->orderBy('date', 'asc')
+            ->get()
+            ->map(function ($bill) {
+                return [
+                    'id'          => $bill->id,
+                    'description' => $bill->description,
+                    'amount'      => $bill->amount,
+                    'date'        => $bill->date->format('Y-m-d'),
+                    'status'      => $bill->status,
+                    'accountId'   => $bill->account_id,
+                    'accountName' => $bill->account->name ?? null,
+                    'image'       => $bill->image,
+                    'isMonthly'   => $bill->is_monthly,
+                ];
+            });
+
+        return response()->json($bills);
+    }
+
+    public function getTotalByStatus(): JsonResponse
+    {
+        $totals = Bill::selectRaw('status, SUM(amount) as total, COUNT(*) as count')
+            ->groupBy('status')
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'status' => $item->status,
+                    'total' => (float) $item->total,
+                    'count' => $item->count,
+                ];
+            });
+
+        return response()->json($totals);
     }
 }
