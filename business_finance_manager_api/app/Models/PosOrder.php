@@ -4,20 +4,22 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class Expense extends Model
+class PosOrder extends Model
 {
     protected $fillable = [
         'user_id',
         'account_id',
-        'category_id',
-        'amount',
         'date',
-        'description',
+        'total_amount',
+        'payment_method',
+        'channel',
+        'note',
+        'shopify_order_id',
     ];
 
     protected $casts = [
         'date' => 'date',
-        'amount' => 'decimal:2',
+        'total_amount' => 'decimal:2',
     ];
 
     public function user()
@@ -30,13 +32,8 @@ class Expense extends Model
         return $this->belongsTo(Account::class);
     }
 
-    public function category()
+    public function items()
     {
-        return $this->belongsTo(ExpenseCategory::class, 'category_id');
-    }
-
-    public function stockMovement()
-    {
-        return $this->hasOne(StockMovement::class);
+        return $this->hasMany(PosOrderItem::class);
     }
 }

@@ -1,46 +1,92 @@
 <?php
+// routes/api.php
 
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\AccountController;
+use App\Http\Controllers\AuthController;
+use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\ExpenseCategoryController;
+use App\Http\Controllers\AccountTransferController;
 use App\Http\Controllers\ExpenseController;
-use App\Http\Controllers\BillController;
+use App\Http\Controllers\MonthlySalesController;
+use App\Http\Controllers\ROIController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\MonthlyReportController;
+use App\Http\Controllers\ProductController;
+use App\Http\Controllers\StockMovementController;
+use App\Http\Controllers\PosOrderController;
+use App\Http\Controllers\ShopifyController;
 
-// ============================================
-// ACCOUNT ROUTES
-// ============================================
-Route::prefix('accounts')->group(function () {
-    Route::get('/', [AccountController::class, 'index']);
-    Route::get('/{id}', [AccountController::class, 'show']);
-    Route::post('/', [AccountController::class, 'store']);
-    Route::put('/{id}', [AccountController::class, 'update']);
-    Route::delete('/{id}', [AccountController::class, 'destroy']);
+// Public routes
+Route::post('/register', [AuthController::class, 'register']);
+Route::post('/login', [AuthController::class, 'login']);
 
-    // Account Actions
-    Route::post('/deposit', [AccountController::class, 'deposit']);
-    Route::post('/withdraw', [AccountController::class, 'withdraw']);
-    Route::post('/transfer', [AccountController::class, 'transfer']);
-    Route::get('/{id}/balance', [AccountController::class, 'balance']);
-});
+// Protected routes
+Route::middleware('auth:api')->group(function () {
+    // Auth
+    Route::post('/logout', [AuthController::class, 'logout']);
+    Route::get('/me', [AuthController::class, 'me']);
 
-// ============================================
-// EXPENSE ROUTES
-// ============================================
-Route::prefix('expenses')->group(function () {
-    Route::get('/', [ExpenseController::class, 'index']);
-    Route::get('/{id}', [ExpenseController::class, 'show']);
-    Route::post('/', [ExpenseController::class, 'store']);
-    Route::put('/{id}', [ExpenseController::class, 'update']);
-    Route::delete('/{id}', [ExpenseController::class, 'destroy']);
-});
+    // Profile
+    Route::put('/profile', [ProfileController::class, 'update']);
+    Route::post('/profile/logo', [ProfileController::class, 'uploadLogo']);
 
-// ============================================
-// BILL ROUTES
-// ============================================
-Route::prefix('bills')->group(function () {
-    Route::get('/', [BillController::class, 'index']);
-    Route::get('/{id}', [BillController::class, 'show']);
-    Route::post('/', [BillController::class, 'store']);
-    Route::put('/{id}', [BillController::class, 'update']);
-    Route::delete('/{id}', [BillController::class, 'destroy']);
-    Route::patch('/{id}/status', [BillController::class, 'updateStatus']);
+    // Expense Categories
+    Route::get('/expense-categories', [ExpenseCategoryController::class, 'index']);
+    Route::post('/expense-categories', [ExpenseCategoryController::class, 'store']);
+    Route::put('/expense-categories/{id}', [ExpenseCategoryController::class, 'update']);
+    Route::delete('/expense-categories/{id}', [ExpenseCategoryController::class, 'destroy']);
+
+    // Account Transfers
+    Route::get('/transfers', [AccountTransferController::class, 'index']);
+    Route::post('/transfers', [AccountTransferController::class, 'store']);
+    Route::get('/transfers/{id}', [AccountTransferController::class, 'show']);
+    Route::delete('/transfers/{id}', [AccountTransferController::class, 'destroy']);
+
+    // Expenses (updated)
+    Route::get('/expenses', [ExpenseController::class, 'index']);
+    Route::post('/expenses', [ExpenseController::class, 'store']);
+    Route::get('/expenses/{id}', [ExpenseController::class, 'show']);
+    Route::put('/expenses/{id}', [ExpenseController::class, 'update']);
+    Route::delete('/expenses/{id}', [ExpenseController::class, 'destroy']);
+
+    // Monthly Sales
+    Route::get('/monthly-sales', [MonthlySalesController::class, 'index']);
+    Route::post('/monthly-sales', [MonthlySalesController::class, 'store']);
+    Route::put('/monthly-sales/{id}', [MonthlySalesController::class, 'update']);
+    Route::delete('/monthly-sales/{id}', [MonthlySalesController::class, 'destroy']);
+
+    // ROI
+    Route::get('/roi/current', [ROIController::class, 'getCurrentMonthROI']);
+    Route::get('/roi', [ROIController::class, 'getROIByMonth']);
+
+    // Dashboard
+    Route::get('/dashboard', [DashboardController::class, 'index']);
+
+    // Monthly Report
+    Route::get('/monthly-report', [MonthlyReportController::class, 'show']);
+
+    // Products (Inventory)
+    Route::get('/products', [ProductController::class, 'index']);
+    Route::post('/products', [ProductController::class, 'store']);
+    Route::get('/products/{id}', [ProductController::class, 'show']);
+    Route::put('/products/{id}', [ProductController::class, 'update']);
+    Route::delete('/products/{id}', [ProductController::class, 'destroy']);
+
+    // Stock Movements
+    Route::get('/stock-movements', [StockMovementController::class, 'index']);
+    Route::post('/stock-movements', [StockMovementController::class, 'store']);
+    Route::post('/products/{id}/adjust-stock', [StockMovementController::class, 'adjustStock']);
+
+    // POS Orders
+    Route::get('/pos-orders', [PosOrderController::class, 'index']);
+    Route::post('/pos-orders', [PosOrderController::class, 'store']);
+    Route::get('/pos-orders/{id}', [PosOrderController::class, 'show']);
+    Route::delete('/pos-orders/{id}', [PosOrderController::class, 'destroy']);
+
+    // Shopify Integration
+    Route::get('/shopify/settings', [ShopifyController::class, 'getSettings']);
+    Route::post('/shopify/settings', [ShopifyController::class, 'saveSettings']);
+    Route::post('/shopify/sync-products', [ShopifyController::class, 'syncProducts']);
+    Route::post('/shopify/sync-orders', [ShopifyController::class, 'syncOrders']);
+    Route::delete('/shopify/disconnect', [ShopifyController::class, 'disconnect']);
 });

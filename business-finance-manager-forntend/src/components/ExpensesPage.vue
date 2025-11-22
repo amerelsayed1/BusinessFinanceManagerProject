@@ -20,7 +20,6 @@ const form = ref({
   description: '',
   amount: '',
   date: new Date().toISOString().split('T')[0],
-  category: '',
   accountId: '',
   isAds: false,
 })
@@ -94,12 +93,6 @@ const submitExpense = () => {
           type="date"
           class="border rounded px-4 py-2"
         />
-        <input
-          v-model="form.category"
-          type="text"
-          placeholder="Category"
-          class="border rounded px-4 py-2"
-        />
         <select v-model="form.accountId" class="border rounded px-4 py-2">
           <option
             v-for="acc in accounts"
@@ -139,7 +132,6 @@ const submitExpense = () => {
             <th class="text-left p-3 text-sm">Description</th>
             <th class="text-left p-3 text-sm">Amount</th>
             <th class="text-left p-3 text-sm">Date</th>
-            <th class="text-left p-3 text-sm">Category</th>
             <th class="text-left p-3 text-sm">Account</th>
             <th class="text-left p-3 text-sm">Action</th>
           </tr>
@@ -155,7 +147,6 @@ const submitExpense = () => {
               {{ Number(exp.amount || 0).toFixed(2) }} {{ currency }}
             </td>
             <td class="p-3">{{ exp.date }}</td>
-            <td class="p-3">{{ exp.category }}</td>
             <td class="p-3 text-sm text-blue-600">
               {{
                 (accounts.find(a => a.id === Number(exp.account_id ?? exp.accountId)) || {}).name
