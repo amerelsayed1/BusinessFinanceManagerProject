@@ -1,56 +1,95 @@
-// src/services/salesService.js
+// src/services/expenseService.js
 import api from './api'
 
+const buildMonthRange = (monthKey) => {
+  if (!monthKey) return null
+
+  const [year, month] = monthKey.split('-').map(Number)
+  if (!year || !month) return null
+
+  const startDate = `${monthKey}-01`
+  const daysInMonth = new Date(year, month, 0).getDate()
+  const endDate = `${monthKey}-${String(daysInMonth).padStart(2, '0')}`
+
+  return { start_date: startDate, end_date: endDate }
+}
+
 export default {
-    // Get all monthly sales
-    getAll() {
-        return api.get('/monthly-sales')
-    },
+  // Get all expenses (optionally filtered by month/category/account)
+  getAll(monthKey = null, filters = {}) {
+    const params = { ...filters }
+    const monthRange = buildMonthRange(monthKey)
 
-    // Get single month sales
-    getById(id) {
-        return api.get(`/monthly-sales/${id}`)
-    },
+    if (monthRange) {
+      Object.assign(params, monthRange)
+    }
 
-    // Create new month sales
-    create(data) {
-        return api.post('/monthly-sales', {
-            month:      data.month,
-            year:       data.year,
-            totalSales: data.totalSales,
-        })
-    },
+    return api.get('/expenses', { params })
+  },
 
-    // Update existing month sales
-    update(id, data) {
-        return api.put(`/monthly-sales/${id}`, {
-            month:      data.month,
-            year:       data.year,
-            totalSales: data.totalSales,
-        })
-    },
+  // Get single expense
+  getById(id) {
+    return api.get(`/expenses/${id}`)
+  },
 
-    // Delete month sales
-    delete(id) {
-        return api.delete(`/monthly-sales/${id}`)
-    },
+  // Create new expense
+  create(data) {
+    return api.post('/expenses', {
+      account_id: data.accountId,
+      category_id: data.categoryId ?? null,
+      amount: data.amount,
+      date: data.date,
+      description: data.description ?? '',
+    })
+  },
+
+  // Update an existing expense
+  update(id, data) {
+    return api.put(`/expenses/${id}`, {
+      account_id: data.accountId,
+      category_id: data.categoryId ?? null,
+      amount: data.amount,
+      date: data.date,
+      description: data.description ?? '',
+    })
+  },
+
+  // Delete expense
+  delete(id) {
+    return api.delete(`/expenses/${id}`)
+  },
 }
 
 // Composable for Vue 3 (Optional)
-export const useSalesService = () => {
-    return {
-        getAll: () => api.get('/monthly-sales'),
-        getById: (id) => api.get(`/monthly-sales/${id}`),
-        create: (data) => api.post('/monthly-sales', {
-            month:      data.month,
-            year:       data.year,
-            totalSales: data.totalSales,
-        }),
-        update: (id, data) => api.put(`/monthly-sales/${id}`, {
-            month:      data.month,
-            year:       data.year,
-            totalSales: data.totalSales,
-        }),
-        delete: (id) => api.delete(`/monthly-sales/${id}`),
-    }
+export const useExpenseService = () => {
+  return {
+    getAll: (monthKey = null, filters = {}) => {
+      const params = { ...filters }
+      const monthRange = buildMonthRange(monthKey)
+
+      if (monthRange) {
+        Object.assign(params, monthRange)
+      }
+
+      return api.get('/expenses', { params })
+    },
+    getById: (id) => api.get(`/expenses/${id}`),
+    create: (data) =>
+      api.post('/expenses', {
+        account_id: data.accountId,
+        category_id: data.categoryId ?? null,
+        amount: data.amount,
+        date: data.date,
+        description: data.description ?? '',
+      }),
+    update: (id, data) =>
+      api.put(`/expenses/${id}`, {
+        account_id: data.accountId,
+        category_id: data.categoryId ?? null,
+        amount: data.amount,
+        date: data.date,
+        description: data.description ?? '',
+      }),
+    delete: (id) => api.delete(`/expenses/${id}`),
+  }
 }
