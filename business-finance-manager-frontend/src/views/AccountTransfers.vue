@@ -115,7 +115,7 @@
 </template>
 
 <script>
-import axios from 'axios';
+import api from '../services/api';
 
 export default {
   name: 'AccountTransfers',
@@ -143,7 +143,7 @@ export default {
   methods: {
     async loadTransfers() {
       try {
-        const response = await axios.get('/api/transfers');
+        const response = await api.get('/transfers');
         this.transfers = response.data;
       } catch (error) {
         console.error('Failed to load transfers:', error);
@@ -151,7 +151,7 @@ export default {
     },
     async loadAccounts() {
       try {
-        const response = await axios.get('/api/accounts');
+        const response = await api.get('/accounts');
         this.accounts = response.data;
       } catch (error) {
         console.error('Failed to load accounts:', error);
@@ -159,7 +159,7 @@ export default {
     },
     async loadUserProfile() {
       try {
-        const response = await axios.get('/api/me');
+        const response = await api.get('/me');
         this.currency = response.data.default_currency || 'EGP';
       } catch (error) {
         console.error('Failed to load user profile:', error);
@@ -173,7 +173,7 @@ export default {
 
       this.submitting = true;
       try {
-        await axios.post('/api/transfers', this.form);
+        await api.post('/transfers', this.form);
         this.loadTransfers();
         this.loadAccounts(); // Refresh account balances
         this.closeModal();
@@ -190,7 +190,7 @@ export default {
       }
 
       try {
-        await axios.delete(`/api/transfers/${id}`);
+        await api.delete(`/transfers/${id}`);
         this.loadTransfers();
         this.loadAccounts();
         alert('Transfer deleted successfully');

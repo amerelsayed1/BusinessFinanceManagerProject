@@ -177,7 +177,7 @@
 </template>
 
 <script>
-import axios from 'axios';
+import api from '../services/api';
 
 export default {
   name: 'Inventory',
@@ -236,7 +236,7 @@ export default {
   methods: {
     async loadProducts() {
       try {
-        const response = await axios.get('/api/products');
+        const response = await api.get('/products');
         this.products = response.data;
       } catch (error) {
         console.error('Failed to load products:', error);
@@ -244,7 +244,7 @@ export default {
     },
     async loadUserProfile() {
       try {
-        const response = await axios.get('/api/me');
+        const response = await api.get('/me');
         this.currency = response.data.default_currency || 'EGP';
       } catch (error) {
         console.error('Failed to load user profile:', error);
@@ -266,9 +266,9 @@ export default {
       this.submitting = true;
       try {
         if (this.editingProduct) {
-          await axios.put(`/api/products/${this.editingProduct.id}`, this.productForm);
+          await api.put(`/products/${this.editingProduct.id}`, this.productForm);
         } else {
-          await axios.post('/api/products', this.productForm);
+          await api.post('/products', this.productForm);
         }
         this.loadProducts();
         this.closeProductModal();
@@ -283,7 +283,7 @@ export default {
       if (!confirm('Are you sure you want to delete this product?')) return;
 
       try {
-        await axios.delete(`/api/products/${id}`);
+        await api.delete(`/products/${id}`);
         this.loadProducts();
         alert('Product deleted successfully');
       } catch (error) {
@@ -302,7 +302,7 @@ export default {
 
       this.submitting = true;
       try {
-        await axios.post(`/api/products/${this.currentProduct.id}/adjust-stock`, this.stockForm);
+        await api.post(`/products/${this.currentProduct.id}/adjust-stock`, this.stockForm);
         this.loadProducts();
         this.closeStockModal();
         alert('Stock adjusted successfully');

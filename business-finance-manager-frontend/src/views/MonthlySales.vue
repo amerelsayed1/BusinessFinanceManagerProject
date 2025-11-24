@@ -98,7 +98,7 @@
 </template>
 
 <script>
-import axios from 'axios';
+import api from '../services/api';
 
 export default {
   name: 'MonthlySales',
@@ -123,7 +123,7 @@ export default {
   methods: {
     async loadSales() {
       try {
-        const response = await axios.get('/api/monthly-sales');
+        const response = await api.get('/monthly-sales');
         this.sales = response.data;
       } catch (error) {
         console.error('Failed to load sales:', error);
@@ -131,7 +131,7 @@ export default {
     },
     async loadUserProfile() {
       try {
-        const response = await axios.get('/api/me');
+        const response = await api.get('/me');
         this.currency = response.data.default_currency || 'EGP';
       } catch (error) {
         console.error('Failed to load user profile:', error);
@@ -150,9 +150,9 @@ export default {
       this.submitting = true;
       try {
         if (this.editingId) {
-          await axios.put(`/api/monthly-sales/${this.editingId}`, this.form);
+          await api.put(`/monthly-sales/${this.editingId}`, this.form);
         } else {
-          await axios.post('/api/monthly-sales', this.form);
+          await api.post('/monthly-sales', this.form);
         }
         this.loadSales();
         this.closeModal();
@@ -169,7 +169,7 @@ export default {
       }
 
       try {
-        await axios.delete(`/api/monthly-sales/${id}`);
+        await api.delete(`/monthly-sales/${id}`);
         this.loadSales();
         alert('Sales record deleted successfully');
       } catch (error) {

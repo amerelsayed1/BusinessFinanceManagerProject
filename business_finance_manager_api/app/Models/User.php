@@ -1,16 +1,15 @@
 <?php
-// app/Models/User.php
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Laravel\Sanctum\HasApiTokens;
 use Tymon\JWTAuth\Contracts\JWTSubject;
 
 class User extends Authenticatable implements JWTSubject
 {
-    use HasApiTokens, Notifiable;
+    use HasFactory, Notifiable;
 
     protected $fillable = [
         'name',
@@ -31,6 +30,7 @@ class User extends Authenticatable implements JWTSubject
         'password' => 'hashed',
     ];
 
+    // ===== JWT methods =====
     public function getJWTIdentifier()
     {
         return $this->getKey();
@@ -41,6 +41,7 @@ class User extends Authenticatable implements JWTSubject
         return [];
     }
 
+    // ===== Relationships =====
     public function expenseCategories()
     {
         return $this->hasMany(ExpenseCategory::class);

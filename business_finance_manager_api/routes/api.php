@@ -1,6 +1,7 @@
 <?php
 // routes/api.php
 
+use App\Http\Controllers\AccountController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ProfileController;
@@ -41,6 +42,18 @@ Route::middleware('auth:api')->group(function () {
     Route::post('/transfers', [AccountTransferController::class, 'store']);
     Route::get('/transfers/{id}', [AccountTransferController::class, 'show']);
     Route::delete('/transfers/{id}', [AccountTransferController::class, 'destroy']);
+
+    // Accounts
+    Route::get('/accounts', [AccountController::class, 'index']);
+    Route::get('/accounts/{id}', [AccountController::class, 'show']);
+    Route::post('/accounts', [AccountController::class, 'store']);
+    Route::put('/accounts/{id}', [AccountController::class, 'update']);
+    Route::delete('/accounts/{id}', [AccountController::class, 'destroy']);
+
+    Route::post('/accounts/deposit', [AccountController::class, 'deposit']);
+    Route::post('/accounts/withdraw', [AccountController::class, 'withdraw']);
+    Route::post('/accounts/transfer', [AccountController::class, 'transfer']);
+    Route::get('/accounts/{id}/balance', [AccountController::class, 'balance']);
 
     // Expenses (updated)
     Route::get('/expenses', [ExpenseController::class, 'index']);

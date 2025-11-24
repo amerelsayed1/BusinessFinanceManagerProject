@@ -99,7 +99,7 @@
 </template>
 
 <script>
-import axios from 'axios';
+import api from '../services/api';
 
 export default {
   name: 'ProfileSettings',
@@ -128,7 +128,7 @@ export default {
   methods: {
     async loadProfile() {
       try {
-        const response = await axios.get('/api/me');
+        const response = await api.get('/me');
         this.profile = response.data;
       } catch (error) {
         console.error('Failed to load profile:', error);
@@ -137,7 +137,7 @@ export default {
     async updateProfile() {
       this.saving = true;
       try {
-        await axios.put('/api/profile', this.profile);
+        await api.put('/profile', this.profile);
         alert('Profile updated successfully');
       } catch (error) {
         alert('Failed to update profile');
@@ -153,7 +153,7 @@ export default {
       formData.append('logo', file);
 
       try {
-        const response = await axios.post('/api/profile/logo', formData);
+        const response = await api.post('/profile/logo', formData);
         this.profile.business_logo = response.data.logo_url;
         alert('Logo uploaded successfully');
       } catch (error) {
@@ -165,7 +165,7 @@ export default {
     },
     async loadCategories() {
       try {
-        const response = await axios.get('/api/expense-categories');
+        const response = await api.get('/expense-categories');
         this.categories = response.data;
       } catch (error) {
         console.error('Failed to load categories:', error);
@@ -179,9 +179,9 @@ export default {
     async saveCategory() {
       try {
         if (this.editingCategory) {
-          await axios.put(`/api/expense-categories/${this.editingCategory.id}`, this.categoryForm);
+          await api.put(`/expense-categories/${this.editingCategory.id}`, this.categoryForm);
         } else {
-          await axios.post('/api/expense-categories', this.categoryForm);
+          await api.post('/expense-categories', this.categoryForm);
         }
         this.loadCategories();
         this.closeCategoryModal();
@@ -193,7 +193,7 @@ export default {
       if (!confirm('Are you sure you want to delete this category?')) return;
 
       try {
-        await axios.delete(`/api/expense-categories/${id}`);
+        await api.delete(`/expense-categories/${id}`);
         this.loadCategories();
       } catch (error) {
         alert(error.response?.data?.error || 'Failed to delete category');

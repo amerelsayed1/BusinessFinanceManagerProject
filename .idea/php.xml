@@ -134,6 +134,9 @@
       <path value="$PROJECT_DIR$/business_finance_manager_api/vendor/nunomaduro/collision" />
       <path value="$PROJECT_DIR$/business_finance_manager_api/vendor/nunomaduro/termwind" />
       <path value="$PROJECT_DIR$/business_finance_manager_api/vendor/graham-campbell/result-type" />
+      <path value="$PROJECT_DIR$/business_finance_manager_api/vendor/tymon/jwt-auth" />
+      <path value="$PROJECT_DIR$/business_finance_manager_api/vendor/lcobucci/jwt" />
+      <path value="$PROJECT_DIR$/business_finance_manager_api/vendor/lcobucci/clock" />
     </include_path>
   </component>
   <component name="PhpProjectSharedConfiguration" php_language_level="8.2">

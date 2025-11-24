@@ -111,7 +111,7 @@
 </template>
 
 <script>
-import axios from 'axios';
+import api from '../services/api';
 
 export default {
   name: 'Register',
@@ -148,7 +148,7 @@ export default {
       this.error = null;
 
       try {
-        const response = await axios.post('/api/register', this.form);
+        const response = await api.post('/register', this.form);
 
         // Store token and user data
         localStorage.setItem('token', response.data.token);

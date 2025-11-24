@@ -114,7 +114,7 @@
 </template>
 
 <script>
-import axios from 'axios';
+import api from '../services/api';
 
 export default {
   name: 'POS',
@@ -155,7 +155,7 @@ export default {
   methods: {
     async loadProducts() {
       try {
-        const response = await axios.get('/api/products', {
+        const response = await api.get('/products', {
           params: { is_active: 1 }
         });
         this.products = response.data.filter(p => p.current_stock > 0);
@@ -165,7 +165,7 @@ export default {
     },
     async loadAccounts() {
       try {
-        const response = await axios.get('/api/accounts');
+        const response = await api.get('/accounts');
         this.accounts = response.data;
       } catch (error) {
         console.error('Failed to load accounts:', error);
@@ -173,7 +173,7 @@ export default {
     },
     async loadUserProfile() {
       try {
-        const response = await axios.get('/api/me');
+        const response = await api.get('/me');
         this.currency = response.data.default_currency || 'EGP';
       } catch (error) {
         console.error('Failed to load user profile:', error);
@@ -243,7 +243,7 @@ export default {
           })),
         };
 
-        await axios.post('/api/pos-orders', orderData);
+        await api.post('/pos-orders', orderData);
 
         alert('Order completed successfully!');
         this.cart = [];

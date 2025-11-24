@@ -119,6 +119,9 @@
       <excludeFolder url="file://$MODULE_DIR$/business_finance_manager_api/vendor/tijsverkoyen/css-to-inline-styles" />
       <excludeFolder url="file://$MODULE_DIR$/business_finance_manager_api/vendor/vlucas/phpdotenv" />
       <excludeFolder url="file://$MODULE_DIR$/business_finance_manager_api/vendor/voku/portable-ascii" />
+      <excludeFolder url="file://$MODULE_DIR$/business_finance_manager_api/vendor/lcobucci/clock" />
+      <excludeFolder url="file://$MODULE_DIR$/business_finance_manager_api/vendor/lcobucci/jwt" />
+      <excludeFolder url="file://$MODULE_DIR$/business_finance_manager_api/vendor/tymon/jwt-auth" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
