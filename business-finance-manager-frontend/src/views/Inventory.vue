@@ -121,6 +121,19 @@
           </div>
 
           <div class="form-group">
+            <label>Product Image</label>
+            <input
+                type="file"
+                accept="image/*"
+                @change="onImageSelected"
+            />
+            <div v-if="imagePreview || productForm.existing_image" class="image-preview">
+              <p class="preview-label">Preview</p>
+              <img :src="imagePreview || productForm.existing_image" alt="Product preview" />
+            </div>
+          </div>
+
+          <div class="form-group">
             <label>
               <input v-model="productForm.is_active" type="checkbox" />
               Active
@@ -199,12 +212,15 @@ export default {
         selling_price: null,
         current_stock: 0,
         is_active: true,
+        image: null,
+        existing_image: null,
       },
       stockForm: {
         quantity: null,
         note: '',
       },
       currency: 'EGP',
+      imagePreview: null,
     };
   },
   computed: {
@@ -259,16 +275,42 @@ export default {
         cost_price: product.cost_price,
         selling_price: product.selling_price,
         is_active: product.is_active,
+        image: null,
+        existing_image: product.image || product.image_url || product.image_path || null,
       };
+      this.imagePreview = this.productForm.existing_image;
       this.showProductModal = true;
     },
     async saveProduct() {
       this.submitting = true;
       try {
+        const formData = new FormData();
+        formData.append('name', this.productForm.name);
+        formData.append('sku', this.productForm.sku);
+        formData.append('category', this.productForm.category || '');
+        formData.append('cost_price', this.productForm.cost_price ?? 0);
+        formData.append('selling_price', this.productForm.selling_price ?? 0);
+        formData.append('is_active', this.productForm.is_active ? 1 : 0);
+
+        if (!this.editingProduct) {
+          formData.append('current_stock', this.productForm.current_stock ?? 0);
+        }
+
+        if (this.productForm.image) {
+          formData.append('image', this.productForm.image);
+        }
+
+        const config = {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        };
+
         if (this.editingProduct) {
-          await api.put(`/products/${this.editingProduct.id}`, this.productForm);
+          formData.append('_method', 'PUT');
+          await api.post(`/products/${this.editingProduct.id}`, formData, config);
         } else {
-          await api.post('/products', this.productForm);
+          await api.post('/products', formData, config);
         }
         this.loadProducts();
         this.closeProductModal();
@@ -278,6 +320,11 @@ export default {
       } finally {
         this.submitting = false;
       }
+    },
+    onImageSelected(event) {
+      const file = event.target.files?.[0];
+      this.productForm.image = file || null;
+      this.imagePreview = file ? URL.createObjectURL(file) : this.productForm.existing_image;
     },
     async deleteProduct(id) {
       if (!confirm('Are you sure you want to delete this product?')) return;
@@ -323,7 +370,10 @@ export default {
         selling_price: null,
         current_stock: 0,
         is_active: true,
+        image: null,
+        existing_image: null,
       };
+      this.imagePreview = null;
     },
     closeStockModal() {
       this.showStockAdjustModal = false;
@@ -483,6 +533,28 @@ export default {
   margin-top: 4px;
   color: #6c757d;
   font-size: 12px;
+}
+
+.image-preview {
+  margin-top: 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 10px;
+  background: #f8fafc;
+}
+
+.image-preview img {
+  max-width: 100%;
+  max-height: 200px;
+  display: block;
+  object-fit: contain;
+}
+
+.preview-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 6px;
 }
 
 .modal-actions {

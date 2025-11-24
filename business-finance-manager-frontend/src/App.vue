@@ -12,6 +12,7 @@ import {
   Boxes,
   BarChart3,
   ShoppingCart,
+  LogOut,
 } from 'lucide-vue-next'
 
 import Dashboard from './views/Dashboard.vue'
@@ -359,6 +360,14 @@ const viewReceipt = (imageData) => {
   showReceiptModal.value = true
 }
 
+const handleLogout = async () => {
+  try {
+    await store.dispatch('auth/logout')
+  } finally {
+    router.push({ name: 'Login' })
+  }
+}
+
 // Month navigation
 const prevExpenseMonth = () => {
   const d = new Date(selectedExpenseMonth.value)
@@ -539,6 +548,14 @@ watch(selectedExpenseMonth, (month) => {
           >
             <ShoppingCart class="w-4 h-4" />
             <span>POS</span>
+          </button>
+
+          <button
+              @click="handleLogout"
+              class="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors text-gray-700 hover:bg-red-50 hover:text-red-600"
+          >
+            <LogOut class="w-4 h-4" />
+            <span>Logout</span>
           </button>
         </nav>
 
