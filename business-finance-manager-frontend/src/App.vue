@@ -12,6 +12,7 @@ import {
   Boxes,
   BarChart3,
   ShoppingCart,
+  Tag,
 } from 'lucide-vue-next'
 
 import Dashboard from './views/Dashboard.vue'
@@ -23,6 +24,7 @@ import AccountTransfersPage from './views/AccountTransfers.vue'
 import InventoryPage from './views/Inventory.vue'
 import MonthlySalesPage from './views/MonthlySales.vue'
 import POSPage from './views/POS.vue'
+import CategoriesPage from './views/CategoriesPage.vue'
 
 import accountService from './services/accountService'
 import expenseService from './services/expenseService'
@@ -236,6 +238,14 @@ const handleDeposit = async (data) => {
   } catch (error) {
     console.error('Error depositing:', error)
   }
+}
+
+const goToAccounts = () => {
+  currentTab.value = 'accounts'
+}
+
+const goToTransfers = () => {
+  currentTab.value = 'transfers'
 }
 
 const openAddBalanceModal = () => {
@@ -511,6 +521,19 @@ watch(isAuthenticated, (loggedIn) => {
           </button>
 
           <button
+              @click="currentTab = 'categories'"
+              :class="[
+              'w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors',
+              currentTab === 'categories'
+                ? 'bg-blue-50 text-blue-700'
+                : 'text-gray-700 hover:bg-gray-50 hover:text-blue-700',
+            ]"
+          >
+            <Tag class="w-4 h-4" />
+            <span>Categories</span>
+          </button>
+
+          <button
               @click="currentTab = 'monthlySales'"
               :class="[
               'w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors',
@@ -589,6 +612,8 @@ watch(isAuthenticated, (loggedIn) => {
               :pending-invoices-this-month="pendingInvoicesThisMonth"
               :paid-invoices-this-month="paidInvoicesThisMonth"
               @open-add-balance="openAddBalanceModal"
+              @open-add-account="goToAccounts"
+              @open-transfer="goToTransfers"
           />
 
           <AccountsPage
@@ -632,6 +657,8 @@ watch(isAuthenticated, (loggedIn) => {
           <AccountTransfersPage v-if="currentTab === 'transfers'" />
 
           <InventoryPage v-if="currentTab === 'inventory'" />
+
+          <CategoriesPage v-if="currentTab === 'categories'" />
 
           <MonthlySalesPage v-if="currentTab === 'monthlySales'" />
 

@@ -8,6 +8,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ExpenseCategoryController;
 use App\Http\Controllers\AccountTransferController;
 use App\Http\Controllers\ExpenseController;
+use App\Http\Controllers\BillController;
 use App\Http\Controllers\MonthlySalesController;
 use App\Http\Controllers\ROIController;
 use App\Http\Controllers\DashboardController;
@@ -16,6 +17,7 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\StockMovementController;
 use App\Http\Controllers\PosOrderController;
 use App\Http\Controllers\ShopifyController;
+use App\Http\Controllers\ProductCategoryController;
 
 // Public routes
 Route::post('/register', [AuthController::class, 'register']);
@@ -62,6 +64,16 @@ Route::middleware('auth:api')->group(function () {
     Route::put('/expenses/{id}', [ExpenseController::class, 'update']);
     Route::delete('/expenses/{id}', [ExpenseController::class, 'destroy']);
 
+    // Bills / Invoices
+    Route::get('/bills', [BillController::class, 'index']);
+    Route::post('/bills', [BillController::class, 'store']);
+    Route::get('/bills/pending', [BillController::class, 'getPending']);
+    Route::get('/bills/summary/status', [BillController::class, 'getTotalByStatus']);
+    Route::get('/bills/{id}', [BillController::class, 'show']);
+    Route::put('/bills/{id}', [BillController::class, 'update']);
+    Route::delete('/bills/{id}', [BillController::class, 'destroy']);
+    Route::put('/bills/{id}/status', [BillController::class, 'updateStatus']);
+
     // Monthly Sales
     Route::get('/monthly-sales', [MonthlySalesController::class, 'index']);
     Route::post('/monthly-sales', [MonthlySalesController::class, 'store']);
@@ -102,4 +114,10 @@ Route::middleware('auth:api')->group(function () {
     Route::post('/shopify/sync-products', [ShopifyController::class, 'syncProducts']);
     Route::post('/shopify/sync-orders', [ShopifyController::class, 'syncOrders']);
     Route::delete('/shopify/disconnect', [ShopifyController::class, 'disconnect']);
+
+    // Product Categories
+    Route::get('/product-categories', [ProductCategoryController::class, 'index']);
+    Route::post('/product-categories', [ProductCategoryController::class, 'store']);
+    Route::put('/product-categories/{id}', [ProductCategoryController::class, 'update']);
+    Route::delete('/product-categories/{id}', [ProductCategoryController::class, 'destroy']);
 });

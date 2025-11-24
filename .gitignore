@@ -1,0 +1,5 @@
+/node_modules/
+/vendor/
+/business-finance-manager-frontend/node_modules/
+/business_finance_manager_api/vendor/
+/.idea/
