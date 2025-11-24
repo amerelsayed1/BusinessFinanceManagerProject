@@ -1,4 +1,6 @@
 import axios from 'axios'
+import router from '../router'
+import store from '../store'
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api'
@@ -23,6 +25,8 @@ api.interceptors.request.use(
   (error) => Promise.reject(error),
 )
 
+let isHandlingUnauthorized = false
+
 // Response interceptor for handling errors
 api.interceptors.response.use(
   (response) => response,
@@ -30,7 +34,13 @@ api.interceptors.response.use(
     if (error.response) {
       switch (error.response.status) {
         case 401:
-          console.error('Unauthorized - redirect to login if needed')
+          if (!isHandlingUnauthorized) {
+            isHandlingUnauthorized = true
+            store.commit('auth/LOGOUT')
+            router.replace({ name: 'Login' })
+            console.warn('Session expired. Please log in again.')
+            isHandlingUnauthorized = false
+          }
           break
         case 403:
           console.error('Forbidden - you do not have access to this resource')

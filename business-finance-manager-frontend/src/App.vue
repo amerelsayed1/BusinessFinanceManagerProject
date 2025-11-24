@@ -12,6 +12,7 @@ import {
   Boxes,
   BarChart3,
   ShoppingCart,
+  LogOut,
 } from 'lucide-vue-next'
 
 import Dashboard from './views/Dashboard.vue'
@@ -44,6 +45,9 @@ const bills = ref([])
 // Date handling
 const selectedExpenseMonth = ref(new Date())
 const selectedBillMonth = ref(new Date())
+
+const formatMonthKey = (date) =>
+    `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
 
 // Loading states
 const loading = ref(false)
@@ -178,15 +182,10 @@ const loadAccounts = async () => {
   }
 }
 
-const loadExpenses = async (month = null) => {
+const loadExpenses = async (month = selectedExpenseMonth.value) => {
   try {
-    const monthStr = month
-        ? `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(
-            2,
-            '0',
-        )}`
-        : null
-    const response = await expenseService.getAll(monthStr)
+    const monthKey = month ? formatMonthKey(month) : null
+    const response = await expenseService.getAll(monthKey)
     expenses.value = response.data
   } catch (error) {
     console.error('Error loading expenses:', error)
@@ -279,9 +278,8 @@ const addExpense = async (data) => {
       description: data.description,
       amount: Number(data.amount),
       date: data.date,
-      category: data.category || null,
+      categoryId: data.categoryId ?? data.category ?? null,
       accountId: Number(data.accountId),
-      isAds: data.isAds || false,
     })
     await loadExpenses()
     await loadAccounts()
@@ -362,6 +360,14 @@ const viewReceipt = (imageData) => {
   showReceiptModal.value = true
 }
 
+const handleLogout = async () => {
+  try {
+    await store.dispatch('auth/logout')
+  } finally {
+    router.push({ name: 'Login' })
+  }
+}
+
 // Month navigation
 const prevExpenseMonth = () => {
   const d = new Date(selectedExpenseMonth.value)
@@ -388,7 +394,11 @@ const nextBillMonth = () => {
 }
 
 const initData = async () => {
-  await Promise.all([loadAccounts(), loadExpenses(), loadBills()])
+  await Promise.all([
+    loadAccounts(),
+    loadExpenses(selectedExpenseMonth.value),
+    loadBills(),
+  ])
 }
 
 onMounted(() => {
@@ -401,6 +411,10 @@ watch(isAuthenticated, (loggedIn) => {
   if (loggedIn) {
     initData()
   }
+})
+
+watch(selectedExpenseMonth, (month) => {
+  loadExpenses(month)
 })
 </script>
 
@@ -534,6 +548,14 @@ watch(isAuthenticated, (loggedIn) => {
           >
             <ShoppingCart class="w-4 h-4" />
             <span>POS</span>
+          </button>
+
+          <button
+              @click="handleLogout"
+              class="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors text-gray-700 hover:bg-red-50 hover:text-red-600"
+          >
+            <LogOut class="w-4 h-4" />
+            <span>Logout</span>
           </button>
         </nav>
 
