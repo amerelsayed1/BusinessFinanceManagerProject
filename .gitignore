@@ -1,5 +1,21 @@
-/node_modules/
-/vendor/
-/business-finance-manager-frontend/node_modules/
-/business_finance_manager_api/vendor/
-/.idea/
+# Workspace-wide ignores
+node_modules/
+.env
+.env.local
+.env.*
+.idea/
+.vscode/
+.DS_Store
+*.log
+
+# Frontend build artifacts
+business-finance-manager-frontend/node_modules/
+business-finance-manager-frontend/dist/
+business-finance-manager-frontend/.vite/
+
+# Backend vendor/build artifacts
+business_finance_manager_api/vendor/
+business_finance_manager_api/node_modules/
+business_finance_manager_api/public/build/
+business_finance_manager_api/storage/*.key
+business_finance_manager_api/storage/pail
