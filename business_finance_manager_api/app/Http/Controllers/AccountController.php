@@ -11,12 +11,16 @@ class AccountController extends Controller
 {
     public function index(): JsonResponse
     {
-        return response()->json(Account::orderBy('id')->get());
+        $accounts = Account::where('user_id', auth()->id())
+            ->orderBy('id')
+            ->get();
+
+        return response()->json($accounts);
     }
 
     public function show($id): JsonResponse
     {
-        $account = Account::findOrFail($id);
+        $account = Account::where('user_id', auth()->id())->findOrFail($id);
         return response()->json($account);
     }
 
@@ -28,6 +32,7 @@ class AccountController extends Controller
         ]);
 
         $account = Account::create([
+            'user_id' => auth()->id(),
             'name'    => $data['name'],
             'balance' => $data['balance'] ?? 0,
         ]);
@@ -37,7 +42,7 @@ class AccountController extends Controller
 
     public function update(Request $request, $id): JsonResponse
     {
-        $account = Account::findOrFail($id);
+        $account = Account::where('user_id', auth()->id())->findOrFail($id);
 
         $data = $request->validate([
             'name'    => 'sometimes|required|string|max:255',
@@ -51,7 +56,7 @@ class AccountController extends Controller
 
     public function destroy($id): JsonResponse
     {
-        $account = Account::findOrFail($id);
+        $account = Account::where('user_id', auth()->id())->findOrFail($id);
 
         // Check if account has related expenses or bills
         if ($account->expenses()->exists() || $account->bills()->exists()) {
@@ -74,7 +79,7 @@ class AccountController extends Controller
             'amount'     => 'required|numeric|min:0.01',
         ]);
 
-        $account = Account::findOrFail($data['account_id']);
+        $account = Account::where('user_id', auth()->id())->findOrFail($data['account_id']);
 
         DB::transaction(function () use ($account, $data) {
             $account->lockForUpdate();
@@ -92,7 +97,7 @@ class AccountController extends Controller
             'amount'     => 'required|numeric|min:0.01',
         ]);
 
-        $account = Account::findOrFail($data['account_id']);
+        $account = Account::where('user_id', auth()->id())->findOrFail($data['account_id']);
 
         // Check if sufficient balance
         if ($account->balance < $data['amount']) {
@@ -118,8 +123,8 @@ class AccountController extends Controller
             'amount'          => 'required|numeric|min:0.01',
         ]);
 
-        $fromAccount = Account::findOrFail($data['from_account_id']);
-        $toAccount = Account::findOrFail($data['to_account_id']);
+        $fromAccount = Account::where('user_id', auth()->id())->findOrFail($data['from_account_id']);
+        $toAccount = Account::where('user_id', auth()->id())->findOrFail($data['to_account_id']);
 
         // Check if sufficient balance
         if ($fromAccount->balance < $data['amount']) {
@@ -149,7 +154,7 @@ class AccountController extends Controller
 
     public function balance($id): JsonResponse
     {
-        $account = Account::findOrFail($id);
+        $account = Account::where('user_id', auth()->id())->findOrFail($id);
 
         return response()->json([
             'account_id' => $account->id,

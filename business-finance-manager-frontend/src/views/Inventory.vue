@@ -1,124 +1,127 @@
 <template>
   <div class="inventory">
     <div class="header">
-      <h1>Inventory Management</h1>
-      <button @click="showProductModal = true" class="btn btn-primary">
-        Add Product
-      </button>
+      <div>
+        <h1>Inventory Management</h1>
+        <p class="subtitle">Manage products, categories, and stock from one page.</p>
+      </div>
     </div>
 
-    <!-- Products Table -->
-    <div class="card">
-      <div class="filters">
-        <input
+    <div class="grid">
+      <div class="card">
+        <div class="filters">
+          <input
             v-model="searchQuery"
             type="text"
             placeholder="Search products..."
             class="search-input"
-        />
-        <select v-model="activeFilter" class="filter-select">
-          <option value="">All Products</option>
-          <option value="1">Active Only</option>
-          <option value="0">Inactive Only</option>
-        </select>
+          />
+          <select v-model="activeFilter" class="filter-select">
+            <option value="">All Products</option>
+            <option value="1">Active Only</option>
+            <option value="0">Inactive Only</option>
+          </select>
+          <select v-model="categoryFilter" class="filter-select">
+            <option value="">All Categories</option>
+            <option v-for="cat in categoryOptions" :key="cat" :value="cat">{{ cat }}</option>
+          </select>
+        </div>
+
+        <table class="products-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>SKU</th>
+              <th>Category</th>
+              <th>Cost Price</th>
+              <th>Selling Price</th>
+              <th>Stock</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="product in filteredProducts" :key="product.id">
+              <td>{{ product.name }}</td>
+              <td>{{ product.sku }}</td>
+              <td>{{ product.category || '-' }}</td>
+              <td>{{ formatCurrency(product.cost_price) }}</td>
+              <td>{{ formatCurrency(product.selling_price) }}</td>
+              <td>
+                <span class="stock-badge" :class="getStockClass(product.current_stock)">
+                  {{ product.current_stock }}
+                </span>
+              </td>
+              <td>
+                <span class="status-badge" :class="product.is_active ? 'active' : 'inactive'">
+                  {{ product.is_active ? 'Active' : 'Inactive' }}
+                </span>
+              </td>
+              <td class="actions">
+                <button @click="selectProduct(product)" class="btn btn-sm btn-light">View</button>
+                <button @click="editProduct(product)" class="btn btn-sm btn-secondary">Edit</button>
+                <button @click="prepareStockAdjust(product)" class="btn btn-sm btn-info">Adjust Stock</button>
+                <button @click="deleteProduct(product.id)" class="btn btn-sm btn-danger">Delete</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div v-if="filteredProducts.length === 0" class="empty-state">
+          No products found
+        </div>
       </div>
 
-      <table class="products-table">
-        <thead>
-        <tr>
-          <th>Name</th>
-          <th>SKU</th>
-          <th>Category</th>
-          <th>Cost Price</th>
-          <th>Selling Price</th>
-          <th>Stock</th>
-          <th>Status</th>
-          <th>Actions</th>
-        </tr>
-        </thead>
-        <tbody>
-        <tr v-for="product in filteredProducts" :key="product.id">
-          <td>{{ product.name }}</td>
-          <td>{{ product.sku }}</td>
-          <td>{{ product.category || '-' }}</td>
-          <td>{{ formatCurrency(product.cost_price) }}</td>
-          <td>{{ formatCurrency(product.selling_price) }}</td>
-          <td>
-              <span
-                  class="stock-badge"
-                  :class="getStockClass(product.current_stock)"
-              >
-                {{ product.current_stock }}
-              </span>
-          </td>
-          <td>
-              <span
-                  class="status-badge"
-                  :class="product.is_active ? 'active' : 'inactive'"
-              >
-                {{ product.is_active ? 'Active' : 'Inactive' }}
-              </span>
-          </td>
-          <td>
-            <button @click="editProduct(product)" class="btn btn-sm btn-secondary">
-              Edit
-            </button>
-            <button @click="showStockModal(product)" class="btn btn-sm btn-info">
-              Adjust Stock
-            </button>
-            <button @click="deleteProduct(product.id)" class="btn btn-sm btn-danger">
-              Delete
-            </button>
-          </td>
-        </tr>
-        </tbody>
-      </table>
-
-      <div v-if="filteredProducts.length === 0" class="empty-state">
-        No products found
-      </div>
-    </div>
-
-    <!-- Product Modal -->
-    <div v-if="showProductModal" class="modal">
-      <div class="modal-content">
-        <h3>{{ editingProduct ? 'Edit' : 'Add' }} Product</h3>
-        <form @submit.prevent="saveProduct">
-          <div class="form-group">
-            <label>Name *</label>
-            <input v-model="productForm.name" type="text" required />
-          </div>
-
-          <div class="form-row">
+      <div class="side-panel">
+        <div class="card">
+          <h3>{{ editingProduct ? 'Edit' : 'Add' }} Product</h3>
+          <form @submit.prevent="saveProduct">
             <div class="form-group">
-              <label>SKU *</label>
-              <input v-model="productForm.sku" type="text" required />
+              <label>Name *</label>
+              <input v-model="productForm.name" type="text" required />
             </div>
 
-            <div class="form-group">
-              <label>Category</label>
-              <input v-model="productForm.category" type="text" />
-            </div>
-          </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>SKU *</label>
+                <input v-model="productForm.sku" type="text" required />
+              </div>
 
-          <div class="form-row">
-            <div class="form-group">
-              <label>Cost Price *</label>
-              <input v-model.number="productForm.cost_price" type="number" step="0.01" required />
+              <div class="form-group">
+                <label>Category</label>
+                <select v-model="productForm.category">
+                  <option value="">Uncategorized</option>
+                  <option v-for="cat in categoryOptions" :key="cat" :value="cat">{{ cat }}</option>
+                </select>
+                <div class="inline-add">
+                  <input
+                    v-model="newCategoryName"
+                    type="text"
+                    placeholder="New category"
+                  />
+                  <button type="button" class="btn btn-xs" @click="addCategory">Add</button>
+                </div>
+              </div>
             </div>
 
-            <div class="form-group">
-              <label>Selling Price *</label>
-              <input v-model.number="productForm.selling_price" type="number" step="0.01" required />
-            </div>
-          </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Cost Price *</label>
+                <input v-model.number="productForm.cost_price" type="number" step="0.01" required />
+              </div>
 
-          <div class="form-row" v-if="!editingProduct">
-            <div class="form-group">
-              <label>Initial Stock</label>
-              <input v-model.number="productForm.current_stock" type="number" min="0" />
+              <div class="form-group">
+                <label>Selling Price *</label>
+                <input v-model.number="productForm.selling_price" type="number" step="0.01" required />
+              </div>
             </div>
-          </div>
+
+            <div class="form-row" v-if="!editingProduct">
+              <div class="form-group">
+                <label>Initial Stock</label>
+                <input v-model.number="productForm.current_stock" type="number" min="0" />
+              </div>
+            </div>
 
           <div class="form-group">
             <label>Product Image</label>
@@ -140,69 +143,78 @@
             </label>
           </div>
 
-          <div class="modal-actions">
-            <button type="button" @click="closeProductModal" class="btn btn-secondary">
-              Cancel
-            </button>
-            <button type="submit" class="btn btn-primary" :disabled="submitting">
-              {{ submitting ? 'Saving...' : 'Save' }}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary" :disabled="submitting">
+                {{ submitting ? 'Saving...' : 'Save' }}
+              </button>
+              <button type="button" class="btn btn-secondary" @click="resetForm">Reset</button>
+            </div>
+          </form>
+        </div>
 
-    <!-- Stock Adjustment Modal -->
-    <div v-if="showStockAdjustModal" class="modal">
-      <div class="modal-content">
-        <h3>Adjust Stock: {{ currentProduct?.name }}</h3>
-        <p>Current Stock: <strong>{{ currentProduct?.current_stock }}</strong></p>
+        <div class="card">
+          <h3>Product Details</h3>
+          <div v-if="selectedProduct" class="product-details">
+            <p><strong>Name:</strong> {{ selectedProduct.name }}</p>
+            <p><strong>SKU:</strong> {{ selectedProduct.sku }}</p>
+            <p><strong>Category:</strong> {{ selectedProduct.category || 'Uncategorized' }}</p>
+            <p><strong>Cost:</strong> {{ formatCurrency(selectedProduct.cost_price) }}</p>
+            <p><strong>Price:</strong> {{ formatCurrency(selectedProduct.selling_price) }}</p>
+            <p><strong>Stock:</strong> {{ selectedProduct.current_stock }}</p>
+            <p><strong>Status:</strong> {{ selectedProduct.is_active ? 'Active' : 'Inactive' }}</p>
 
-        <form @submit.prevent="adjustStock">
-          <div class="form-group">
-            <label>Adjustment Quantity</label>
-            <input
-                v-model.number="stockForm.quantity"
-                type="number"
-                required
-                placeholder="Positive to add, negative to remove"
-            />
-            <small>Enter a positive number to add stock, negative to remove</small>
-          </div>
+            <div class="stock-form">
+              <h4>Adjust Stock</h4>
+              <form @submit.prevent="adjustStock">
+                <div class="form-group">
+                  <label>Adjustment Quantity</label>
+                  <input
+                    v-model.number="stockForm.quantity"
+                    type="number"
+                    required
+                    placeholder="Positive to add, negative to remove"
+                  />
+                  <small>Enter a positive number to add stock, negative to remove</small>
+                </div>
 
-          <div class="form-group">
-            <label>Note</label>
-            <textarea v-model="stockForm.note" rows="3"></textarea>
-          </div>
+                <div class="form-group">
+                  <label>Note</label>
+                  <textarea v-model="stockForm.note" rows="2"></textarea>
+                </div>
 
-          <div class="modal-actions">
-            <button type="button" @click="closeStockModal" class="btn btn-secondary">
-              Cancel
-            </button>
-            <button type="submit" class="btn btn-primary" :disabled="submitting">
-              {{ submitting ? 'Adjusting...' : 'Adjust Stock' }}
-            </button>
+                <div class="form-actions">
+                  <button type="submit" class="btn btn-info" :disabled="submitting">
+                    {{ submitting ? 'Adjusting...' : 'Adjust Stock' }}
+                  </button>
+                  <button type="button" class="btn btn-secondary" @click="resetStockForm">Clear</button>
+                </div>
+              </form>
+            </div>
           </div>
-        </form>
+          <div v-else class="empty-state">
+            Select a product to see its details
+          </div>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script>
-import api from '../services/api';
+import api from '../services/api'
+import productCategoryService from '../services/productCategoryService'
 
 export default {
   name: 'Inventory',
   data() {
     return {
       products: [],
+      categories: [],
       searchQuery: '',
       activeFilter: '',
-      showProductModal: false,
-      showStockAdjustModal: false,
+      categoryFilter: '',
       editingProduct: null,
-      currentProduct: null,
+      selectedProduct: null,
       submitting: false,
       productForm: {
         name: '',
@@ -215,6 +227,7 @@ export default {
         image: null,
         existing_image: null,
       },
+      newCategoryName: '',
       stockForm: {
         quantity: null,
         note: '',
@@ -225,49 +238,77 @@ export default {
   },
   computed: {
     filteredProducts() {
-      let filtered = this.products;
+      let filtered = this.products
 
-      // Filter by search query
       if (this.searchQuery) {
-        const query = this.searchQuery.toLowerCase();
-        filtered = filtered.filter(p =>
+        const query = this.searchQuery.toLowerCase()
+        filtered = filtered.filter(
+          (p) =>
             p.name.toLowerCase().includes(query) ||
             p.sku.toLowerCase().includes(query) ||
-            (p.category && p.category.toLowerCase().includes(query))
-        );
+            (p.category && p.category.toLowerCase().includes(query)),
+        )
       }
 
-      // Filter by active status
       if (this.activeFilter !== '') {
-        filtered = filtered.filter(p => p.is_active === Boolean(Number(this.activeFilter)));
+        filtered = filtered.filter(
+          (p) => p.is_active === Boolean(Number(this.activeFilter)),
+        )
       }
 
-      return filtered;
+      if (this.categoryFilter) {
+        filtered = filtered.filter((p) => p.category === this.categoryFilter)
+      }
+
+      return filtered
+    },
+    categoryOptions() {
+      const names = new Set([...(this.categories || []).map((c) => c.name)])
+      this.products
+        .filter((p) => p.category)
+        .forEach((p) => names.add(p.category))
+      return Array.from(names).sort((a, b) => a.localeCompare(b))
     },
   },
   mounted() {
-    this.loadProducts();
-    this.loadUserProfile();
+    this.loadProducts()
+    this.loadCategories()
+    this.loadUserProfile()
   },
   methods: {
     async loadProducts() {
       try {
-        const response = await api.get('/products');
-        this.products = response.data;
+        const response = await api.get('/products')
+        this.products = response.data
       } catch (error) {
-        console.error('Failed to load products:', error);
+        console.error('Failed to load products:', error)
+      }
+    },
+    async loadCategories() {
+      try {
+        const response = await productCategoryService.getAll()
+        this.categories = response.data
+      } catch (error) {
+        console.error('Failed to load categories:', error)
       }
     },
     async loadUserProfile() {
       try {
-        const response = await api.get('/me');
-        this.currency = response.data.default_currency || 'EGP';
+        const response = await api.get('/me')
+        this.currency = response.data.default_currency || 'EGP'
       } catch (error) {
-        console.error('Failed to load user profile:', error);
+        console.error('Failed to load user profile:', error)
+      }
+    },
+    selectProduct(product) {
+      this.selectedProduct = product
+      this.stockForm = {
+        quantity: null,
+        note: '',
       }
     },
     editProduct(product) {
-      this.editingProduct = product;
+      this.editingProduct = product
       this.productForm = {
         name: product.name,
         sku: product.sku,
@@ -282,7 +323,7 @@ export default {
       this.showProductModal = true;
     },
     async saveProduct() {
-      this.submitting = true;
+      this.submitting = true
       try {
         const formData = new FormData();
         formData.append('name', this.productForm.name);
@@ -312,13 +353,14 @@ export default {
         } else {
           await api.post('/products', formData, config);
         }
-        this.loadProducts();
-        this.closeProductModal();
-        alert('Product saved successfully');
+        await this.loadProducts()
+        await this.loadCategories()
+        this.resetForm()
+        alert('Product saved successfully')
       } catch (error) {
-        alert(error.response?.data?.error || 'Failed to save product');
+        alert(error.response?.data?.error || 'Failed to save product')
       } finally {
-        this.submitting = false;
+        this.submitting = false
       }
     },
     onImageSelected(event) {
@@ -327,41 +369,54 @@ export default {
       this.imagePreview = file ? URL.createObjectURL(file) : this.productForm.existing_image;
     },
     async deleteProduct(id) {
-      if (!confirm('Are you sure you want to delete this product?')) return;
+      if (!confirm('Are you sure you want to delete this product?')) return
 
       try {
-        await api.delete(`/products/${id}`);
-        this.loadProducts();
-        alert('Product deleted successfully');
+        await api.delete(`/products/${id}`)
+        await this.loadProducts()
+        alert('Product deleted successfully')
+        if (this.selectedProduct && this.selectedProduct.id === id) {
+          this.selectedProduct = null
+        }
       } catch (error) {
-        alert('Failed to delete product');
+        alert('Failed to delete product')
       }
     },
-    showStockModal(product) {
-      this.currentProduct = product;
-      this.showStockAdjustModal = true;
+    prepareStockAdjust(product) {
+      this.selectProduct(product)
     },
     async adjustStock() {
-      if (!this.stockForm.quantity || this.stockForm.quantity === 0) {
-        alert('Please enter a valid quantity');
-        return;
+      if (!this.selectedProduct) {
+        alert('Please select a product first')
+        return
       }
 
-      this.submitting = true;
+      if (!this.stockForm.quantity || this.stockForm.quantity === 0) {
+        alert('Please enter a valid quantity')
+        return
+      }
+
+      this.submitting = true
       try {
-        await api.post(`/products/${this.currentProduct.id}/adjust-stock`, this.stockForm);
-        this.loadProducts();
-        this.closeStockModal();
-        alert('Stock adjusted successfully');
+        await api.post(
+          `/products/${this.selectedProduct.id}/adjust-stock`,
+          this.stockForm,
+        )
+        await this.loadProducts()
+        const updated = this.products.find(
+          (p) => p.id === this.selectedProduct.id,
+        )
+        if (updated) this.selectedProduct = updated
+        this.resetStockForm()
+        alert('Stock adjusted successfully')
       } catch (error) {
-        alert('Failed to adjust stock');
+        alert('Failed to adjust stock')
       } finally {
-        this.submitting = false;
+        this.submitting = false
       }
     },
-    closeProductModal() {
-      this.showProductModal = false;
-      this.editingProduct = null;
+    resetForm() {
+      this.editingProduct = null
       this.productForm = {
         name: '',
         sku: '',
@@ -375,24 +430,35 @@ export default {
       };
       this.imagePreview = null;
     },
-    closeStockModal() {
-      this.showStockAdjustModal = false;
-      this.currentProduct = null;
+    resetStockForm() {
       this.stockForm = {
         quantity: null,
         note: '',
-      };
+      }
+    },
+    async addCategory() {
+      const name = this.newCategoryName.trim()
+      if (!name) return
+
+      try {
+        await productCategoryService.create(name)
+        await this.loadCategories()
+        this.productForm.category = name
+        this.newCategoryName = ''
+      } catch (error) {
+        alert('Failed to add category')
+      }
     },
     getStockClass(stock) {
-      if (stock === 0) return 'out-of-stock';
-      if (stock < 10) return 'low-stock';
-      return 'in-stock';
+      if (stock === 0) return 'out-of-stock'
+      if (stock < 10) return 'low-stock'
+      return 'in-stock'
     },
     formatCurrency(amount) {
-      return `${parseFloat(amount || 0).toFixed(2)} ${this.currency}`;
+      return `${parseFloat(amount || 0).toFixed(2)} ${this.currency}`
     },
   },
-};
+}
 </script>
 
 <style scoped>
@@ -404,31 +470,45 @@ export default {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 12px;
+}
+
+.subtitle {
+  color: #6c757d;
+  margin-top: 4px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 16px;
 }
 
 .card {
   background: white;
   padding: 20px;
   border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  margin-bottom: 20px;
 }
 
 .filters {
   display: flex;
   gap: 10px;
-  margin-bottom: 20px;
-}
-
-.search-input,
-.filter-select {
-  padding: 8px 12px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+  margin-bottom: 15px;
 }
 
 .search-input {
   flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+}
+
+.filter-select {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
 }
 
 .products-table {
@@ -438,14 +518,20 @@ export default {
 
 .products-table th,
 .products-table td {
-  padding: 12px;
+  padding: 10px 8px;
   text-align: left;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid #f1f1f1;
 }
 
 .products-table th {
   background: #f8f9fa;
   font-weight: 600;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
 .stock-badge,
@@ -481,36 +567,20 @@ export default {
   color: #721c24;
 }
 
-.modal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0,0,0,0.5);
+.side-panel {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.modal-content {
-  background: white;
-  padding: 30px;
-  border-radius: 8px;
-  min-width: 600px;
-  max-height: 90vh;
-  overflow-y: auto;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 15px;
+  gap: 12px;
 }
 
 .form-group {
-  margin-bottom: 15px;
+  margin-bottom: 12px;
 }
 
 .form-group label {
@@ -519,8 +589,9 @@ export default {
   font-weight: 500;
 }
 
-.form-group input[type="text"],
-.form-group input[type="number"],
+.form-group input[type='text'],
+.form-group input[type='number'],
+.form-group select,
 .form-group textarea {
   width: 100%;
   padding: 8px;
@@ -560,15 +631,25 @@ export default {
 .modal-actions {
   display: flex;
   gap: 10px;
-  margin-top: 20px;
+  margin-top: 10px;
+}
+
+.checkbox {
+  display: flex;
+  align-items: center;
 }
 
 .btn {
-  padding: 8px 16px;
+  padding: 8px 14px;
   border: none;
   border-radius: 4px;
   cursor: pointer;
   font-weight: 500;
+}
+
+.btn-xs {
+  padding: 6px 10px;
+  margin-left: 6px;
 }
 
 .btn-primary {
@@ -586,25 +667,47 @@ export default {
   color: white;
 }
 
+.btn-light {
+  background: #f1f3f5;
+  color: #333;
+}
+
 .btn-danger {
   background: #dc3545;
   color: white;
 }
 
 .btn-sm {
-  padding: 4px 8px;
-  font-size: 14px;
-  margin-right: 5px;
+  padding: 6px 10px;
+  font-size: 12px;
 }
 
-.btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+.inline-add {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.product-details p {
+  margin-bottom: 6px;
+}
+
+.stock-form {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #eee;
 }
 
 .empty-state {
   text-align: center;
-  padding: 40px;
   color: #6c757d;
+  padding: 16px 0;
+}
+
+@media (max-width: 1024px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

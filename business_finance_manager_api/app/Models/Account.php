@@ -22,7 +22,7 @@ use Illuminate\Database\Eloquent\Model;
  */
 class Account extends Model
 {
-    protected $fillable = ['name', 'balance'];
+    protected $fillable = ['user_id', 'name', 'balance'];
 
     protected $casts = [
         'balance' => 'float',
@@ -36,5 +36,10 @@ class Account extends Model
     public function bills()
     {
         return $this->hasMany(Bill::class);
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
     }
 }
