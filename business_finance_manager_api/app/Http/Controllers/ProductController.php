@@ -40,6 +40,7 @@ class ProductController extends Controller
             'name' => 'required|string|max:255',
             'sku' => 'required|string|unique:products,sku',
             'category' => 'nullable|string|max:255',
+            'description' => 'nullable|string',
             'cost_price' => 'required|numeric|min:0',
             'selling_price' => 'required|numeric|min:0',
             'current_stock' => 'nullable|integer|min:0',
@@ -55,6 +56,7 @@ class ProductController extends Controller
             'name' => $request->name,
             'sku' => $request->sku,
             'category' => $request->category,
+            'description' => $request->description,
             'cost_price' => $request->cost_price,
             'selling_price' => $request->selling_price,
             'current_stock' => $request->current_stock ?? 0,
@@ -84,6 +86,7 @@ class ProductController extends Controller
             'name' => 'sometimes|string|max:255',
             'sku' => 'sometimes|string|unique:products,sku,' . $id,
             'category' => 'nullable|string|max:255',
+            'description' => 'nullable|string',
             'cost_price' => 'sometimes|numeric|min:0',
             'selling_price' => 'sometimes|numeric|min:0',
             'is_active' => 'boolean',
@@ -94,7 +97,7 @@ class ProductController extends Controller
         }
 
         $product->update($request->only([
-            'name', 'sku', 'category', 'cost_price', 'selling_price', 'is_active'
+            'name', 'sku', 'category', 'description', 'cost_price', 'selling_price', 'is_active'
         ]));
 
         return response()->json([

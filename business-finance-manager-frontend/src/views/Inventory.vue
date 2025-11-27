@@ -104,6 +104,15 @@
               </div>
             </div>
 
+            <div class="form-group">
+              <label>Description (optional)</label>
+              <textarea
+                v-model="productForm.description"
+                rows="2"
+                placeholder="Short description for the product"
+              ></textarea>
+            </div>
+
             <div class="form-row">
               <div class="form-group">
                 <label>Cost Price *</label>
@@ -121,6 +130,33 @@
                 <label>Initial Stock</label>
                 <input v-model.number="productForm.current_stock" type="number" min="0" />
               </div>
+            </div>
+
+            <div class="form-group">
+              <div class="flex justify-between items-center">
+                <label class="mb-1">Variants &amp; Stock</label>
+                <button type="button" class="btn btn-xs" @click="addVariantRow">Add Variant</button>
+              </div>
+              <div v-if="variants.length === 0" class="text-sm text-gray-500 mb-2">No variants yet.</div>
+              <div v-for="(variant, index) in variants" :key="index" class="variant-row">
+                <input
+                  v-model="variant.name"
+                  type="text"
+                  placeholder="Variant name"
+                />
+                <input
+                  v-model.number="variant.stock"
+                  type="number"
+                  min="0"
+                  placeholder="Available stock"
+                />
+                <button type="button" class="btn btn-xs btn-danger" @click="removeVariantRow(index)">
+                  Remove
+                </button>
+              </div>
+              <p class="text-xs text-gray-600 mt-2">
+                Total variant stock: {{ variantStockTotal }}
+              </p>
             </div>
 
           <div class="form-group">
@@ -147,6 +183,7 @@
               <button type="submit" class="btn btn-primary" :disabled="submitting">
                 {{ submitting ? 'Saving...' : 'Save' }}
               </button>
+              <button type="button" class="btn btn-info" @click="fillRandomProduct">Random product</button>
               <button type="button" class="btn btn-secondary" @click="resetForm">Reset</button>
             </div>
           </form>
@@ -220,6 +257,7 @@ export default {
         name: '',
         sku: '',
         category: '',
+        description: '',
         cost_price: null,
         selling_price: null,
         current_stock: 0,
@@ -227,6 +265,7 @@ export default {
         image: null,
         existing_image: null,
       },
+      variants: [],
       newCategoryName: '',
       stockForm: {
         quantity: null,
@@ -234,6 +273,7 @@ export default {
       },
       currency: 'EGP',
       imagePreview: null,
+      showProductModal: false,
     };
   },
   computed: {
@@ -268,6 +308,9 @@ export default {
         .filter((p) => p.category)
         .forEach((p) => names.add(p.category))
       return Array.from(names).sort((a, b) => a.localeCompare(b))
+    },
+    variantStockTotal() {
+      return this.variants.reduce((sum, variant) => sum + Number(variant.stock || 0), 0)
     },
   },
   mounted() {
@@ -313,12 +356,16 @@ export default {
         name: product.name,
         sku: product.sku,
         category: product.category,
+        description: product.description || '',
         cost_price: product.cost_price,
         selling_price: product.selling_price,
         is_active: product.is_active,
         image: null,
         existing_image: product.image || product.image_url || product.image_path || null,
       };
+      this.variants = product.current_stock
+        ? [{ name: 'Default', stock: Number(product.current_stock) }]
+        : []
       this.imagePreview = this.productForm.existing_image;
       this.showProductModal = true;
     },
@@ -329,12 +376,22 @@ export default {
         formData.append('name', this.productForm.name);
         formData.append('sku', this.productForm.sku);
         formData.append('category', this.productForm.category || '');
+        formData.append('description', this.productForm.description || '');
         formData.append('cost_price', this.productForm.cost_price ?? 0);
         formData.append('selling_price', this.productForm.selling_price ?? 0);
         formData.append('is_active', this.productForm.is_active ? 1 : 0);
 
+        const variantStock = this.variants.reduce(
+          (sum, variant) => sum + Number(variant.stock || 0),
+          0,
+        )
+
+        const stockToSave = this.variants.length > 0
+          ? variantStock
+          : this.productForm.current_stock ?? 0
+
         if (!this.editingProduct) {
-          formData.append('current_stock', this.productForm.current_stock ?? 0);
+          formData.append('current_stock', stockToSave);
         }
 
         if (this.productForm.image) {
@@ -421,6 +478,7 @@ export default {
         name: '',
         sku: '',
         category: '',
+        description: '',
         cost_price: null,
         selling_price: null,
         current_stock: 0,
@@ -428,7 +486,30 @@ export default {
         image: null,
         existing_image: null,
       };
+      this.variants = []
       this.imagePreview = null;
+    },
+    addVariantRow() {
+      this.variants.push({ name: '', stock: 0 })
+    },
+    removeVariantRow(index) {
+      this.variants.splice(index, 1)
+    },
+    fillRandomProduct() {
+      const randomId = Math.floor(Math.random() * 10000)
+      this.productForm.name = `Sample Product ${randomId}`
+      this.productForm.sku = `SKU-${randomId}`
+      this.productForm.category = this.categoryOptions[0] || ''
+      this.productForm.description = 'Autogenerated product for quick testing.'
+      this.productForm.cost_price = Number((Math.random() * 50 + 10).toFixed(2))
+      this.productForm.selling_price = Number(
+        (this.productForm.cost_price + Math.random() * 50).toFixed(2),
+      )
+      this.productForm.current_stock = Math.floor(Math.random() * 50) + 1
+      this.variants = [
+        { name: 'Standard', stock: Math.max(1, Math.floor(this.productForm.current_stock / 2)) },
+        { name: 'Premium', stock: Math.max(0, this.productForm.current_stock - 5) },
+      ]
     },
     resetStockForm() {
       this.stockForm = {

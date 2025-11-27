@@ -15,6 +15,7 @@ const emit = defineEmits([
   'prev-month',
   'next-month',
   'add-bill',
+  'update-bill',
   'delete-bill',
   'toggle-status',
   'view-receipt',
@@ -24,6 +25,18 @@ const form = ref({
   description: '',
   amount: '',
   date: new Date().toISOString().split('T')[0],
+  status: 'pending',
+  accountId: '',
+  image: null,
+  isMonthly: false,
+})
+
+const showEditModal = ref(false)
+const editingBill = ref(null)
+const editForm = ref({
+  description: '',
+  amount: '',
+  date: '',
   status: 'pending',
   accountId: '',
   image: null,
@@ -52,6 +65,36 @@ const onFileChange = (e) => {
 
 const submitBill = () => {
   emit('add-bill', { ...form.value })
+}
+
+const startEditBill = (bill) => {
+  editingBill.value = bill
+  editForm.value = {
+    description: bill.description || '',
+    amount: bill.amount,
+    date: bill.date,
+    status: bill.status,
+    accountId: String(bill.account_id ?? bill.accountId ?? ''),
+    image: bill.image || null,
+    isMonthly: bill.is_monthly ?? bill.isMonthly ?? false,
+  }
+  showEditModal.value = true
+}
+
+const submitEditBill = () => {
+  if (!editingBill.value) return
+  emit('update-bill', editingBill.value.id, { ...editForm.value })
+  showEditModal.value = false
+}
+
+const onEditFileChange = (e) => {
+  const file = e.target.files && e.target.files[0]
+  if (!file) return
+  const reader = new FileReader()
+  reader.onloadend = () => {
+    editForm.value.image = reader.result
+  }
+  reader.readAsDataURL(file)
 }
 </script>
 
@@ -230,6 +273,21 @@ const submitBill = () => {
             <td class="p-3">
               <button
                 type="button"
+                class="text-indigo-500 hover:text-indigo-700 text-sm mr-3"
+                @click="startEditBill(bill)"
+              >
+                Edit
+              </button>
+              <button
+                v-if="bill.image"
+                type="button"
+                class="text-blue-500 hover:text-blue-700 text-sm mr-3"
+                @click="emit('view-receipt', bill.image)"
+              >
+                Show Invoice Image
+              </button>
+              <button
+                type="button"
                 class="text-red-500 hover:text-red-700 text-sm"
                 @click="emit('delete-bill', bill)"
               >
@@ -246,6 +304,111 @@ const submitBill = () => {
       >
         No invoices for this month.
       </p>
+    </div>
+
+    <div
+      v-if="showEditModal"
+      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+      @click.self="showEditModal = false"
+    >
+      <div class="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-auto">
+        <h3 class="text-xl font-bold mb-4">Edit Invoice</h3>
+        <div class="space-y-4">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <input
+              v-model="editForm.description"
+              type="text"
+              placeholder="Description"
+              class="border rounded px-4 py-2"
+            />
+            <input
+              v-model="editForm.amount"
+              type="number"
+              placeholder="Amount"
+              class="border rounded px-4 py-2"
+            />
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <input
+              v-model="editForm.date"
+              type="date"
+              class="border rounded px-4 py-2"
+            />
+            <select v-model="editForm.accountId" class="border rounded px-4 py-2">
+              <option
+                v-for="acc in accounts"
+                :key="acc.id"
+                :value="acc.id.toString()"
+              >
+                {{ acc.name }}
+              </option>
+            </select>
+            <select v-model="editForm.status" class="border rounded px-4 py-2">
+              <option value="pending">Pending</option>
+              <option value="paid">Paid</option>
+            </select>
+          </div>
+
+          <label
+            class="border rounded px-4 py-2 bg-white cursor-pointer hover:bg-gray-100 flex items-center justify-center"
+          >
+            <span class="mr-2">📷</span>
+            <span>
+              {{ editForm.image ? 'Receipt Selected ✓' : 'Upload Receipt Image' }}
+            </span>
+            <input
+              type="file"
+              accept="image/*"
+              class="hidden"
+              @change="onEditFileChange"
+            />
+          </label>
+
+          <div v-if="editForm.image" class="flex items-center gap-2">
+            <img
+              :src="editForm.image"
+              alt="Preview"
+              class="h-20 w-20 object-cover rounded border"
+            />
+            <button
+              type="button"
+              class="text-red-500 hover:text-red-700"
+              @click="editForm.image = null"
+            >
+              <X :size="20" />
+            </button>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <input
+              id="isMonthlyEdit"
+              v-model="editForm.isMonthly"
+              type="checkbox"
+              class="h-4 w-4"
+            />
+            <label for="isMonthlyEdit" class="text-sm text-gray-700">
+              Monthly invoice
+            </label>
+          </div>
+
+          <div class="flex gap-2">
+            <button
+              type="button"
+              class="flex-1 bg-blue-600 text-white rounded px-4 py-2 hover:bg-blue-700"
+              @click="submitEditBill"
+            >
+              Save Changes
+            </button>
+            <button
+              type="button"
+              class="flex-1 bg-gray-200 text-gray-700 rounded px-4 py-2 hover:bg-gray-300"
+              @click="showEditModal = false"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
