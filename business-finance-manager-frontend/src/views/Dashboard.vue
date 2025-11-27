@@ -22,6 +22,7 @@ const props = defineProps({
   // can't use fallbackMonthLabel here, so keep it empty by default
   currentMonthLabel: {type: String, default: ''},
   totalExpensesThisMonth: {type: Number, default: 0},
+  defaultExpensesThisMonth: {type: Number, default: 0},
   pendingInvoicesThisMonth: {type: Number, default: 0},
   paidInvoicesThisMonth: {type: Number, default: 0},
 })
@@ -32,8 +33,8 @@ const emit = defineEmits([
   'open-transfer',
 ])
 
-const totalInvoicesAmount = computed(
-    () => props.pendingInvoicesThisMonth + props.paidInvoicesThisMonth,
+const totalInvoicesAmount = computed(() =>
+    props.pendingInvoicesThisMonth + props.paidInvoicesThisMonth,
 )
 
 const netCashFlow = computed(
@@ -174,7 +175,7 @@ const handleTransferClick = () => {
       >
         <div class="flex items-center justify-between mb-3">
           <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">
-            Total sales (paid invoices)
+            Total sales (POS)
           </p>
           <TrendingUp class="w-4 h-4 text-green-500"/>
         </div>
@@ -182,7 +183,7 @@ const handleTransferClick = () => {
           {{ paidInvoicesThisMonth.toFixed(2) }} {{ currency }}
         </p>
         <p class="mt-1 text-xs text-gray-500">
-          Collected this month
+          Collected via POS this month
         </p>
       </div>
 
@@ -201,6 +202,9 @@ const handleTransferClick = () => {
         </p>
         <p class="mt-1 text-xs text-gray-500">
           Spent this month
+        </p>
+        <p class="mt-1 text-xs text-gray-500">
+          Default categories: {{ defaultExpensesThisMonth.toFixed(2) }} {{ currency }}
         </p>
       </div>
 

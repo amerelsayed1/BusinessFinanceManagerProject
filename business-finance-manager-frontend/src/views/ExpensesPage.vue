@@ -4,6 +4,7 @@ import { ref, watch } from 'vue'
 const props = defineProps({
   currency: { type: String, required: true },
   accounts: { type: Array, required: true },
+  categories: { type: Array, required: true },
   monthLabel: { type: String, required: true },
   expenses: { type: Array, required: true },
   totalForMonth: { type: Number, required: true },
@@ -13,6 +14,7 @@ const emit = defineEmits([
   'prev-month',
   'next-month',
   'add-expense',
+  'update-expense',
   'delete-expense',
 ])
 
@@ -21,7 +23,17 @@ const form = ref({
   amount: '',
   date: new Date().toISOString().split('T')[0],
   accountId: '',
-  isAds: false,
+  categoryId: '',
+})
+
+const showEditModal = ref(false)
+const editingExpense = ref(null)
+const editForm = ref({
+  description: '',
+  amount: '',
+  date: '',
+  accountId: '',
+  categoryId: '',
 })
 
 watch(
@@ -34,8 +46,36 @@ watch(
   { immediate: true },
 )
 
+watch(
+  () => props.categories,
+  (list) => {
+    if (list.length > 0 && !form.value.categoryId) {
+      form.value.categoryId = String(list[0].id)
+    }
+  },
+  { immediate: true },
+)
+
 const submitExpense = () => {
   emit('add-expense', { ...form.value })
+}
+
+const startEditExpense = (expense) => {
+  editingExpense.value = expense
+  editForm.value = {
+    description: expense.description || '',
+    amount: expense.amount,
+    date: expense.date,
+    accountId: String(expense.account_id ?? expense.accountId ?? ''),
+    categoryId: expense.category_id ? String(expense.category_id) : '',
+  }
+  showEditModal.value = true
+}
+
+const submitEdit = () => {
+  if (!editingExpense.value) return
+  emit('update-expense', editingExpense.value.id, { ...editForm.value })
+  showEditModal.value = false
 }
 </script>
 
@@ -102,18 +142,16 @@ const submitExpense = () => {
             {{ acc.name }}
           </option>
         </select>
-      </div>
-
-      <div class="flex items-center gap-2">
-        <input
-          id="isAds"
-          v-model="form.isAds"
-          type="checkbox"
-          class="h-4 w-4"
-        />
-        <label for="isAds" class="text-sm text-gray-700">
-          This is an Ads cost
-        </label>
+        <select v-model="form.categoryId" class="border rounded px-4 py-2">
+          <option value="">Uncategorized</option>
+          <option
+            v-for="cat in categories"
+            :key="cat.id"
+            :value="cat.id.toString()"
+          >
+            {{ cat.name }}
+          </option>
+        </select>
       </div>
 
       <button
@@ -156,6 +194,13 @@ const submitExpense = () => {
             <td class="p-3">
               <button
                 type="button"
+                class="text-indigo-500 hover:text-indigo-700 text-sm mr-3"
+                @click="startEditExpense(exp)"
+              >
+                Edit
+              </button>
+              <button
+                type="button"
                 class="text-red-500 hover:text-red-700 text-sm"
                 @click="emit('delete-expense', exp)"
               >
@@ -171,6 +216,74 @@ const submitExpense = () => {
       >
         No expenses for this month.
       </p>
+    </div>
+
+    <div
+      v-if="showEditModal"
+      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+      @click.self="showEditModal = false"
+    >
+      <div class="bg-white rounded-lg p-6 max-w-lg w-full">
+        <h3 class="text-xl font-bold mb-4">Edit Expense</h3>
+        <div class="space-y-4">
+          <input
+            v-model="editForm.description"
+            type="text"
+            placeholder="Description"
+            class="border rounded px-4 py-2 w-full"
+          />
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <input
+              v-model="editForm.amount"
+              type="number"
+              placeholder="Amount"
+              class="border rounded px-4 py-2 w-full"
+            />
+            <input
+              v-model="editForm.date"
+              type="date"
+              class="border rounded px-4 py-2 w-full"
+            />
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <select v-model="editForm.accountId" class="border rounded px-4 py-2 w-full">
+              <option
+                v-for="acc in accounts"
+                :key="acc.id"
+                :value="acc.id.toString()"
+              >
+                {{ acc.name }}
+              </option>
+            </select>
+            <select v-model="editForm.categoryId" class="border rounded px-4 py-2 w-full">
+              <option value="">Uncategorized</option>
+              <option
+                v-for="cat in categories"
+                :key="cat.id"
+                :value="cat.id.toString()"
+              >
+                {{ cat.name }}
+              </option>
+            </select>
+          </div>
+          <div class="flex gap-2">
+            <button
+              type="button"
+              class="flex-1 bg-blue-600 text-white rounded px-4 py-2 hover:bg-blue-700"
+              @click="submitEdit"
+            >
+              Save Changes
+            </button>
+            <button
+              type="button"
+              class="flex-1 bg-gray-200 text-gray-700 rounded px-4 py-2 hover:bg-gray-300"
+              @click="showEditModal = false"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>

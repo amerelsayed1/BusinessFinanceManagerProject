@@ -3,17 +3,26 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useStore } from 'vuex'
 import { useRouter } from 'vue-router'
 import {
-  Home,
+  Archive,
+  ArrowLeftRight,
+  BadgeCheck,
+  BarChart3,
+  Boxes,
+  ChevronDown,
   CreditCard,
   DollarSign,
+  Download,
   FileText,
-  User,
-  ArrowLeftRight,
-  Boxes,
-  BarChart3,
-  ShoppingCart,
+  Home,
+  Layers,
+  List,
   LogOut,
-  Tag,
+  PlusSquare,
+  Printer,
+  Ruler,
+  ScanBarcode,
+  ShoppingCart,
+  User,
 } from 'lucide-vue-next'
 
 import Dashboard from './views/Dashboard.vue'
@@ -30,6 +39,8 @@ import CategoriesPage from './views/CategoriesPage.vue'
 import accountService from './services/accountService'
 import expenseService from './services/expenseService'
 import billService from './services/billService'
+import expenseCategoryService from './services/expenseCategoryService'
+import posOrderService from './services/posOrderService'
 
 const store = useStore()
 const router = useRouter()
@@ -38,11 +49,15 @@ const isAuthenticated = computed(() => store.getters['auth/isAuthenticated'])
 
 const currentTab = ref('home')
 const currency = ref('EGP')
+const productMenuOpen = ref(true)
+const activeProductNav = ref('allProducts')
 
 // Data
 const accounts = ref([])
 const expenses = ref([])
 const bills = ref([])
+const expenseCategories = ref([])
+const posOrders = ref([])
 
 // Date handling
 const selectedExpenseMonth = ref(new Date())
@@ -101,6 +116,27 @@ const totalExpensesThisMonth = computed(() => {
       .reduce((sum, exp) => sum + Number(exp.amount || 0), 0)
 })
 
+const defaultExpensesThisMonth = computed(() => {
+  const defaultCategoryIds = expenseCategories.value
+      .filter((cat) => cat.is_default)
+      .map((cat) => cat.id)
+
+  const now = new Date()
+  const currentYear = now.getFullYear()
+  const currentMonth = now.getMonth()
+
+  return expenses.value
+      .filter((exp) => {
+        const expDate = new Date(exp.date)
+        return (
+            expDate.getFullYear() === currentYear &&
+            expDate.getMonth() === currentMonth &&
+            defaultCategoryIds.includes(exp.category_id || exp.categoryId)
+        )
+      })
+      .reduce((sum, exp) => sum + Number(exp.amount || 0), 0)
+})
+
 const filteredExpenses = computed(() => {
   const year = selectedExpenseMonth.value.getFullYear()
   const month = selectedExpenseMonth.value.getMonth()
@@ -147,16 +183,15 @@ const paidInvoicesThisMonth = computed(() => {
   const currentYear = now.getFullYear()
   const currentMonth = now.getMonth()
 
-  return bills.value
-      .filter((bill) => {
-        const billDate = new Date(bill.date)
+  return posOrders.value
+      .filter((order) => {
+        const orderDate = new Date(order.date)
         return (
-            billDate.getFullYear() === currentYear &&
-            billDate.getMonth() === currentMonth &&
-            bill.status === 'paid'
+            orderDate.getFullYear() === currentYear &&
+            orderDate.getMonth() === currentMonth
         )
       })
-      .reduce((sum, bill) => sum + Number(bill.amount || 0), 0)
+      .reduce((sum, order) => sum + Number(order.total_amount || 0), 0)
 })
 
 const pendingTotalForBillMonth = computed(() =>
@@ -203,6 +238,30 @@ const loadBills = async () => {
   }
 }
 
+const loadExpenseCategories = async () => {
+  try {
+    const response = await expenseCategoryService.getAll()
+    expenseCategories.value = response.data
+  } catch (error) {
+    console.error('Error loading expense categories:', error)
+  }
+}
+
+const loadPosOrders = async () => {
+  try {
+    const now = new Date()
+    const monthKey = formatMonthKey(now)
+    const [year, month] = monthKey.split('-').map(Number)
+    const startDate = `${monthKey}-01`
+    const endDate = `${monthKey}-${String(new Date(year, month, 0).getDate()).padStart(2, '0')}`
+
+    const response = await posOrderService.getAll({ start_date: startDate, end_date: endDate })
+    posOrders.value = response.data
+  } catch (error) {
+    console.error('Error loading POS orders:', error)
+  }
+}
+
 // Account operations
 const createAccount = async (data) => {
   try {
@@ -245,6 +304,17 @@ const goToAccounts = () => {
 
 const goToTransfers = () => {
   currentTab.value = 'transfers'
+}
+
+const navigateProductNav = (key) => {
+  activeProductNav.value = key
+
+  if (key === 'category') {
+    currentTab.value = 'categories'
+    return
+  }
+
+  currentTab.value = 'inventory'
 }
 
 const openAddBalanceModal = () => {
@@ -299,6 +369,25 @@ const addExpense = async (data) => {
   }
 }
 
+const updateExpense = async (expenseId, data) => {
+  if (!expenseId) return
+
+  try {
+    await expenseService.update(expenseId, {
+      description: data.description,
+      amount: Number(data.amount),
+      date: data.date,
+      categoryId: data.categoryId ?? null,
+      accountId: Number(data.accountId),
+    })
+    await loadExpenses()
+    await loadAccounts()
+    console.log('Expense updated successfully!')
+  } catch (error) {
+    console.error('Error updating expense:', error)
+  }
+}
+
 const deleteExpense = async (expense) => {
   if (!confirm('Delete this expense?')) return
 
@@ -334,6 +423,27 @@ const addBill = async (data) => {
     console.log('Invoice added successfully!')
   } catch (error) {
     console.error('Error adding bill:', error)
+  }
+}
+
+const updateBill = async (id, data) => {
+  if (!id) return
+
+  try {
+    await billService.update(id, {
+      description: data.description,
+      amount: Number(data.amount),
+      date: data.date,
+      status: data.status || 'pending',
+      accountId: Number(data.accountId),
+      image: data.image || null,
+      isMonthly: data.isMonthly || false,
+    })
+    await loadBills()
+    await loadAccounts()
+    console.log('Invoice updated successfully!')
+  } catch (error) {
+    console.error('Error updating bill:', error)
   }
 }
 
@@ -408,6 +518,8 @@ const initData = async () => {
     loadAccounts(),
     loadExpenses(selectedExpenseMonth.value),
     loadBills(),
+    loadExpenseCategories(),
+    loadPosOrders(),
   ])
 }
 
@@ -522,30 +634,50 @@ watch(selectedExpenseMonth, (month) => {
           </button>
 
           <button
-              @click="currentTab = 'inventory'"
+              @click="productMenuOpen = !productMenuOpen"
               :class="[
-              'w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors',
-              currentTab === 'inventory'
+              'w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-sm transition-colors',
+              currentTab === 'inventory' || currentTab === 'categories'
                 ? 'bg-blue-50 text-blue-700'
                 : 'text-gray-700 hover:bg-gray-50 hover:text-blue-700',
             ]"
           >
-            <Boxes class="w-4 h-4" />
-            <span>Inventory</span>
+            <span class="flex items-center gap-2">
+              <Boxes class="w-4 h-4" />
+              <span>Products</span>
+            </span>
+            <ChevronDown
+                class="w-4 h-4 transition-transform"
+                :class="productMenuOpen ? 'rotate-180' : ''"
+            />
           </button>
 
-          <button
-              @click="currentTab = 'categories'"
-              :class="[
-              'w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors',
-              currentTab === 'categories'
-                ? 'bg-blue-50 text-blue-700'
-                : 'text-gray-700 hover:bg-gray-50 hover:text-blue-700',
-            ]"
-          >
-            <Tag class="w-4 h-4" />
-            <span>Categories</span>
-          </button>
+          <div v-if="productMenuOpen" class="pl-2 space-y-1">
+            <button
+                v-for="item in [
+                  { key: 'create', label: 'Create product', icon: PlusSquare },
+                  { key: 'allProducts', label: 'All Products', icon: List },
+                  { key: 'import', label: 'Import products', icon: Download },
+                  { key: 'openingStock', label: 'Opening Stock', icon: Archive },
+                  { key: 'print', label: 'Print Labels', icon: Printer },
+                  { key: 'count', label: 'Count Stock', icon: ScanBarcode },
+                  { key: 'category', label: 'Category', icon: Layers },
+                  { key: 'brand', label: 'Brand', icon: BadgeCheck },
+                  { key: 'unit', label: 'Unit', icon: Ruler },
+                ]"
+                :key="item.key"
+                @click="navigateProductNav(item.key)"
+                :class="[
+                'w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors',
+                activeProductNav === item.key
+                  ? 'bg-blue-50 text-blue-700'
+                  : 'text-gray-700 hover:bg-gray-50 hover:text-blue-700',
+              ]"
+            >
+              <component :is="item.icon" class="w-4 h-4" />
+              <span>{{ item.label }}</span>
+            </button>
+          </div>
 
           <button
               @click="currentTab = 'monthlySales'"
@@ -631,6 +763,7 @@ watch(selectedExpenseMonth, (month) => {
               :total-balance="totalBalance"
               :current-month-label="currentMonthLabel"
               :total-expenses-this-month="totalExpensesThisMonth"
+              :default-expenses-this-month="defaultExpensesThisMonth"
               :pending-invoices-this-month="pendingInvoicesThisMonth"
               :paid-invoices-this-month="paidInvoicesThisMonth"
               @open-add-balance="openAddBalanceModal"
@@ -651,12 +784,14 @@ watch(selectedExpenseMonth, (month) => {
               v-if="currentTab === 'expenses'"
               :currency="currency"
               :accounts="accounts"
+              :categories="expenseCategories"
               :month-label="expenseMonthLabel"
               :expenses="filteredExpenses"
               :total-for-month="totalForExpenseMonth"
               @prev-month="prevExpenseMonth"
               @next-month="nextExpenseMonth"
               @add-expense="addExpense"
+              @update-expense="updateExpense"
               @delete-expense="deleteExpense"
           />
 
@@ -671,6 +806,7 @@ watch(selectedExpenseMonth, (month) => {
               @prev-month="prevBillMonth"
               @next-month="nextBillMonth"
               @add-bill="addBill"
+              @update-bill="updateBill"
               @delete-bill="deleteBill"
               @toggle-status="toggleBillStatus"
               @view-receipt="viewReceipt"
