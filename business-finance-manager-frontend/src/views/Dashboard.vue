@@ -1,6 +1,6 @@
 <!-- src/views/Dashboard.vue -->
 <script setup>
-import { computed } from 'vue'
+import {computed} from 'vue'
 import {
   ArrowUpRight,
   ArrowDownRight,
@@ -17,13 +17,13 @@ const fallbackMonthLabel = today.toLocaleDateString('en-US', {
 })
 
 const props = defineProps({
-  currency: { type: String, default: 'EGP' },
-  totalBalance: { type: Number, default: 0 },
+  currency: {type: String, default: 'EGP'},
+  totalBalance: {type: Number, default: 0},
   // can't use fallbackMonthLabel here, so keep it empty by default
-  currentMonthLabel: { type: String, default: '' },
-  totalExpensesThisMonth: { type: Number, default: 0 },
-  pendingInvoicesThisMonth: { type: Number, default: 0 },
-  paidInvoicesThisMonth: { type: Number, default: 0 },
+  currentMonthLabel: {type: String, default: ''},
+  totalExpensesThisMonth: {type: Number, default: 0},
+  pendingInvoicesThisMonth: {type: Number, default: 0},
+  paidInvoicesThisMonth: {type: Number, default: 0},
 })
 
 const emit = defineEmits([
@@ -124,7 +124,7 @@ const handleTransferClick = () => {
             class="inline-flex items-center gap-2 rounded-lg border border-gray-200 text-gray-700 text-sm font-medium px-3 py-1.5 hover:bg-gray-50 transition-colors"
             @click="handleAddAccountClick"
         >
-          <Wallet class="w-4 h-4" />
+          <Wallet class="w-4 h-4"/>
           Add account
         </button>
 
@@ -133,7 +133,7 @@ const handleTransferClick = () => {
             class="inline-flex items-center gap-2 rounded-lg border border-gray-200 text-gray-700 text-sm font-medium px-3 py-1.5 hover:bg-gray-50 transition-colors"
             @click="handleTransferClick"
         >
-          <ArrowRightLeft class="w-4 h-4" />
+          <ArrowRightLeft class="w-4 h-4"/>
           Transfer between accounts
         </button>
 
@@ -142,7 +142,7 @@ const handleTransferClick = () => {
             class="inline-flex items-center gap-2 rounded-lg bg-blue-600 text-white text-sm font-medium px-3 py-1.5 hover:bg-blue-700 transition-colors"
             @click="handleAddBalanceClick"
         >
-          <Wallet class="w-4 h-4" />
+          <Wallet class="w-4 h-4"/>
           Add balance
         </button>
       </div>
@@ -158,7 +158,7 @@ const handleTransferClick = () => {
           <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">
             Total balance
           </p>
-          <Wallet class="w-4 h-4 text-blue-500" />
+          <Wallet class="w-4 h-4 text-blue-500"/>
         </div>
         <p class="text-2xl font-semibold text-gray-900">
           {{ totalBalance.toFixed(2) }} {{ currency }}
@@ -176,7 +176,7 @@ const handleTransferClick = () => {
           <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">
             Total sales (paid invoices)
           </p>
-          <TrendingUp class="w-4 h-4 text-green-500" />
+          <TrendingUp class="w-4 h-4 text-green-500"/>
         </div>
         <p class="text-2xl font-semibold text-gray-900">
           {{ paidInvoicesThisMonth.toFixed(2) }} {{ currency }}
@@ -194,7 +194,7 @@ const handleTransferClick = () => {
           <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">
             Expenses
           </p>
-          <Receipt class="w-4 h-4 text-orange-500" />
+          <Receipt class="w-4 h-4 text-orange-500"/>
         </div>
         <p class="text-2xl font-semibold text-gray-900">
           {{ totalExpensesThisMonth.toFixed(2) }} {{ currency }}
@@ -246,66 +246,6 @@ const handleTransferClick = () => {
         <p class="mt-1 text-xs text-gray-500">
           ROI = Net cash flow / Expenses
         </p>
-      </div>
-    </div>
-
-    <!-- Middle row: Performance only (steps removed) -->
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-      <div class="flex items-center justify-between mb-4">
-        <div>
-          <h3 class="text-sm font-semibold text-gray-900">Performance</h3>
-          <p class="text-xs text-gray-500">
-            Sales vs expenses in {{ monthLabel }}
-          </p>
-        </div>
-        <button
-            type="button"
-            class="border border-gray-200 rounded-lg px-2.5 py-1 text-xs text-gray-600 hover:bg-gray-50"
-        >
-          Export report
-        </button>
-      </div>
-
-      <!-- Fake chart background -->
-      <div
-          class="relative h-48 rounded-lg bg-gradient-to-t from-blue-50 via-white to-white border border-dashed border-blue-100 overflow-hidden"
-      >
-        <div
-            class="absolute inset-x-6 top-3 flex justify-between text-[10px] text-gray-400"
-        >
-          <span>High</span>
-          <span>Low</span>
-        </div>
-        <div class="absolute inset-4 flex items-end gap-1 opacity-70">
-          <div
-              v-for="n in 14"
-              :key="n"
-              class="flex-1 rounded-full bg-blue-100"
-              :style="{ height: `${20 + (n * 4) % 70}%` }"
-          />
-        </div>
-      </div>
-
-      <!-- Bottom metrics row -->
-      <div class="mt-4 grid gap-3 sm:grid-cols-3">
-        <div class="space-y-0.5">
-          <p class="text-xs text-gray-500">Sales this month</p>
-          <p class="text-sm font-semibold text-gray-900">
-            {{ paidInvoicesThisMonth.toFixed(2) }} {{ currency }}
-          </p>
-        </div>
-        <div class="space-y-0.5">
-          <p class="text-xs text-gray-500">Expenses this month</p>
-          <p class="text-sm font-semibold text-gray-900">
-            {{ totalExpensesThisMonth.toFixed(2) }} {{ currency }}
-          </p>
-        </div>
-        <div class="space-y-0.5">
-          <p class="text-xs text-gray-500">Paid ratio</p>
-          <p class="text-sm font-semibold text-gray-900">
-            {{ conversionRate.toFixed(1) }}%
-          </p>
-        </div>
       </div>
     </div>
 
