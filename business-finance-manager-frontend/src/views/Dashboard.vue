@@ -7,7 +7,7 @@ import {
   Wallet,
   TrendingUp,
   Receipt,
-  CreditCard,
+  CreditCard, ArrowRightLeft,
 } from 'lucide-vue-next'
 
 const today = new Date()
