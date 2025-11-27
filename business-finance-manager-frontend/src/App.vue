@@ -3,17 +3,26 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useStore } from 'vuex'
 import { useRouter } from 'vue-router'
 import {
-  Home,
+  Archive,
+  ArrowLeftRight,
+  BadgeCheck,
+  BarChart3,
+  Boxes,
+  ChevronDown,
   CreditCard,
   DollarSign,
+  Download,
   FileText,
-  User,
-  ArrowLeftRight,
-  Boxes,
-  BarChart3,
-  ShoppingCart,
+  Home,
+  Layers,
+  List,
   LogOut,
-  Tag,
+  PlusSquare,
+  Printer,
+  Ruler,
+  ScanBarcode,
+  ShoppingCart,
+  User,
 } from 'lucide-vue-next'
 
 import Dashboard from './views/Dashboard.vue'
@@ -40,6 +49,8 @@ const isAuthenticated = computed(() => store.getters['auth/isAuthenticated'])
 
 const currentTab = ref('home')
 const currency = ref('EGP')
+const productMenuOpen = ref(true)
+const activeProductNav = ref('allProducts')
 
 // Data
 const accounts = ref([])
@@ -293,6 +304,17 @@ const goToAccounts = () => {
 
 const goToTransfers = () => {
   currentTab.value = 'transfers'
+}
+
+const navigateProductNav = (key) => {
+  activeProductNav.value = key
+
+  if (key === 'category') {
+    currentTab.value = 'categories'
+    return
+  }
+
+  currentTab.value = 'inventory'
 }
 
 const openAddBalanceModal = () => {
@@ -612,30 +634,50 @@ watch(selectedExpenseMonth, (month) => {
           </button>
 
           <button
-              @click="currentTab = 'inventory'"
+              @click="productMenuOpen = !productMenuOpen"
               :class="[
-              'w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors',
-              currentTab === 'inventory'
+              'w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-sm transition-colors',
+              currentTab === 'inventory' || currentTab === 'categories'
                 ? 'bg-blue-50 text-blue-700'
                 : 'text-gray-700 hover:bg-gray-50 hover:text-blue-700',
             ]"
           >
-            <Boxes class="w-4 h-4" />
-            <span>Inventory</span>
+            <span class="flex items-center gap-2">
+              <Boxes class="w-4 h-4" />
+              <span>Products</span>
+            </span>
+            <ChevronDown
+                class="w-4 h-4 transition-transform"
+                :class="productMenuOpen ? 'rotate-180' : ''"
+            />
           </button>
 
-          <button
-              @click="currentTab = 'categories'"
-              :class="[
-              'w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors',
-              currentTab === 'categories'
-                ? 'bg-blue-50 text-blue-700'
-                : 'text-gray-700 hover:bg-gray-50 hover:text-blue-700',
-            ]"
-          >
-            <Tag class="w-4 h-4" />
-            <span>Categories</span>
-          </button>
+          <div v-if="productMenuOpen" class="pl-2 space-y-1">
+            <button
+                v-for="item in [
+                  { key: 'create', label: 'Create product', icon: PlusSquare },
+                  { key: 'allProducts', label: 'All Products', icon: List },
+                  { key: 'import', label: 'Import products', icon: Download },
+                  { key: 'openingStock', label: 'Opening Stock', icon: Archive },
+                  { key: 'print', label: 'Print Labels', icon: Printer },
+                  { key: 'count', label: 'Count Stock', icon: ScanBarcode },
+                  { key: 'category', label: 'Category', icon: Layers },
+                  { key: 'brand', label: 'Brand', icon: BadgeCheck },
+                  { key: 'unit', label: 'Unit', icon: Ruler },
+                ]"
+                :key="item.key"
+                @click="navigateProductNav(item.key)"
+                :class="[
+                'w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors',
+                activeProductNav === item.key
+                  ? 'bg-blue-50 text-blue-700'
+                  : 'text-gray-700 hover:bg-gray-50 hover:text-blue-700',
+              ]"
+            >
+              <component :is="item.icon" class="w-4 h-4" />
+              <span>{{ item.label }}</span>
+            </button>
+          </div>
 
           <button
               @click="currentTab = 'monthlySales'"
