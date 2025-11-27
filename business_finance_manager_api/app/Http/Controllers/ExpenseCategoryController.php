@@ -1,11 +1,10 @@
 <?php
 
-// app/Http/Controllers/ExpenseCategoryController.php
-
 namespace App\Http\Controllers;
 
 use App\Models\ExpenseCategory;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Validator;
 
 class ExpenseCategoryController extends Controller
@@ -19,7 +18,14 @@ class ExpenseCategoryController extends Controller
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255|unique:expense_categories,name,NULL,id,user_id,' . auth()->id(),
+            'name' => [
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('expense_categories')->where(function ($query) {
+                    return $query->where('user_id', auth()->id());
+                })
+            ],
         ]);
 
         if ($validator->fails()) {
@@ -43,7 +49,14 @@ class ExpenseCategoryController extends Controller
         $category = ExpenseCategory::where('user_id', auth()->id())->findOrFail($id);
 
         $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255|unique:expense_categories,name,' . $id . ',id,user_id,' . auth()->id(),
+            'name' => [
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('expense_categories')->where(function ($query) {
+                    return $query->where('user_id', auth()->id());
+                })->ignore($id)
+            ],
         ]);
 
         if ($validator->fails()) {

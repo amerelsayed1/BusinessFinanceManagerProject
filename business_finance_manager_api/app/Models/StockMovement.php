@@ -30,12 +30,5 @@ class StockMovement extends Model
         return $this->belongsTo(Expense::class);
     }
 
-    // Automatically update product stock when movement is created
-    protected static function booted()
-    {
-        static::created(function ($movement) {
-            $product = $movement->product;
-            $product->increment('current_stock', $movement->quantity);
-        });
-    }
+    // REMOVED: The booted() method that caused race conditions
 }

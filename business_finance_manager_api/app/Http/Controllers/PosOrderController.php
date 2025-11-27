@@ -49,7 +49,6 @@ class PosOrderController extends Controller
             return response()->json($validator->errors(), 422);
         }
 
-        // Verify account belongs to user
         $account = Account::where('id', $request->account_id)
             ->where('user_id', auth()->id())
             ->firstOrFail();
@@ -57,16 +56,24 @@ class PosOrderController extends Controller
         DB::beginTransaction();
         try {
             $totalAmount = 0;
+            $productsToUpdate = [];
 
-            // Calculate total and verify stock
+            // First pass: validate and lock all products
             foreach ($request->items as $item) {
                 $product = Product::where('id', $item['product_id'])
                     ->where('user_id', auth()->id())
+                    ->lockForUpdate()
                     ->firstOrFail();
 
                 if ($product->current_stock < $item['quantity']) {
                     throw new \Exception("Insufficient stock for product: {$product->name}");
                 }
+
+                $productsToUpdate[] = [
+                    'product' => $product,
+                    'quantity' => $item['quantity'],
+                    'unit_price' => $item['unit_price']
+                ];
 
                 $totalAmount += $item['quantity'] * $item['unit_price'];
             }
@@ -82,28 +89,33 @@ class PosOrderController extends Controller
                 'note' => $request->note,
             ]);
 
-            // Create order items and stock movements
-            foreach ($request->items as $item) {
-                $product = Product::findOrFail($item['product_id']);
-                $totalLineAmount = $item['quantity'] * $item['unit_price'];
+            // Second pass: create items, movements, and update stock
+            foreach ($productsToUpdate as $data) {
+                $product = $data['product'];
+                $quantity = $data['quantity'];
+                $unitPrice = $data['unit_price'];
+                $totalLineAmount = $quantity * $unitPrice;
 
                 // Create order item
                 PosOrderItem::create([
                     'pos_order_id' => $order->id,
-                    'product_id' => $item['product_id'],
-                    'quantity' => $item['quantity'],
-                    'unit_price' => $item['unit_price'],
+                    'product_id' => $product->id,
+                    'quantity' => $quantity,
+                    'unit_price' => $unitPrice,
                     'total_line_amount' => $totalLineAmount,
                 ]);
 
-                // Create stock movement (negative quantity for sale)
+                // Create stock movement
                 StockMovement::create([
-                    'product_id' => $item['product_id'],
+                    'product_id' => $product->id,
                     'type' => 'pos_sale',
-                    'quantity' => -$item['quantity'],
+                    'quantity' => -$quantity,
                     'date' => $request->date,
                     'note' => "POS Order #{$order->id}",
                 ]);
+
+                // Update stock atomically in same transaction
+                $product->decrement('current_stock', $quantity);
             }
 
             // Increase account balance

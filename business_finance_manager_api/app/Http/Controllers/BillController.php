@@ -13,9 +13,9 @@ class BillController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $status = $request->query('status'); // 'pending' or 'paid'
+        $status = $request->query('status');
 
-        $query = $this->billsForUser()
+        $query = Bill::where('user_id', auth()->id())
             ->with('account:id,name')
             ->orderBy('date', 'desc')
             ->orderBy('id', 'desc');
@@ -41,25 +41,6 @@ class BillController extends Controller
         return response()->json($bills);
     }
 
-    public function show(int $id): JsonResponse
-    {
-        $bill = $this->billsForUser()
-            ->with('account:id,name')
-            ->findOrFail($id);
-
-        return response()->json([
-            'id'          => $bill->id,
-            'description' => $bill->description,
-            'amount'      => $bill->amount,
-            'date'        => $bill->date->format('Y-m-d'),
-            'status'      => $bill->status,
-            'accountId'   => $bill->account_id,
-            'accountName' => $bill->account->name,
-            'image'       => $bill->image,
-            'isMonthly'   => $bill->is_monthly,
-        ]);
-    }
-
     public function store(Request $request): JsonResponse
     {
         $data = $request->validate([
@@ -79,11 +60,13 @@ class BillController extends Controller
         return DB::transaction(function () use ($data) {
             $account = Account::where('user_id', auth()->id())->findOrFail($data['accountId']);
 
-            $bill = $account->bills()->create([
+            $bill = Bill::create([
+                'user_id'     => auth()->id(),
                 'description' => $data['description'],
                 'amount'      => $data['amount'],
                 'date'        => $data['date'],
                 'status'      => $data['status'],
+                'account_id'  => $data['accountId'],
                 'image'       => $data['image'] ?? null,
                 'is_monthly'  => $data['isMonthly'] ?? false,
             ]);
@@ -125,16 +108,19 @@ class BillController extends Controller
         ]);
 
         return DB::transaction(function () use ($data, $id) {
-            $bill = $this->billsForUser()->lockForUpdate()->findOrFail($id);
-            $oldStatus = $bill->status;
-            $oldAmount = $bill->amount;
-            $oldAccountId = $bill->account_id;
+            $bill = Bill::where('user_id', auth()->id())->lockForUpdate()->findOrFail($id);
 
-            // If status is changing or amount/account is changing and was paid, revert old balance
-            if ($oldStatus === 'paid' && (isset($data['amount']) || isset($data['accountId']))) {
-                $oldAccount = Account::where('user_id', auth()->id())->lockForUpdate()->findOrFail($oldAccountId);
-                $oldAccount->balance += $oldAmount;
-                $oldAccount->save();
+            // Store original state
+            $wasAffectingBalance = ($bill->status === 'paid');
+            $originalAccount = null;
+
+            if ($wasAffectingBalance) {
+                $originalAccount = Account::where('user_id', auth()->id())
+                    ->lockForUpdate()
+                    ->findOrFail($bill->account_id);
+                // Revert original balance impact
+                $originalAccount->balance += $bill->amount;
+                $originalAccount->save();
             }
 
             // Update bill
@@ -150,9 +136,11 @@ class BillController extends Controller
             $bill->update($updateData);
             $bill->refresh();
 
-            // Apply new amount if bill is paid
+            // Apply new balance impact if bill is now paid
             if ($bill->status === 'paid') {
-                $newAccount = Account::where('user_id', auth()->id())->lockForUpdate()->findOrFail($bill->account_id);
+                $newAccount = Account::where('user_id', auth()->id())
+                    ->lockForUpdate()
+                    ->findOrFail($bill->account_id);
                 $newAccount->balance -= $bill->amount;
                 $newAccount->save();
             }
@@ -173,7 +161,7 @@ class BillController extends Controller
     public function destroy(int $id): JsonResponse
     {
         return DB::transaction(function () use ($id) {
-            $bill = $this->billsForUser()->lockForUpdate()->findOrFail($id);
+            $bill = Bill::where('user_id', auth()->id())->lockForUpdate()->findOrFail($id);
             $account = Account::where('user_id', auth()->id())->lockForUpdate()->find($bill->account_id);
 
             if ($bill->status === 'paid' && $account) {
@@ -194,7 +182,7 @@ class BillController extends Controller
         ]);
 
         return DB::transaction(function () use ($data, $id) {
-            $bill = $this->billsForUser()->lockForUpdate()->findOrFail($id);
+            $bill = Bill::where('user_id', auth()->id())->lockForUpdate()->findOrFail($id);
             $oldStatus = $bill->status;
             $newStatus = $data['status'];
 
@@ -222,7 +210,7 @@ class BillController extends Controller
 
     public function getPending(): JsonResponse
     {
-        $bills = $this->billsForUser()
+        $bills = Bill::where('user_id', auth()->id())
             ->with('account:id,name')
             ->where('status', 'pending')
             ->orderBy('date', 'asc')
@@ -246,7 +234,7 @@ class BillController extends Controller
 
     public function getTotalByStatus(): JsonResponse
     {
-        $totals = $this->billsForUser()
+        $totals = Bill::where('user_id', auth()->id())
             ->selectRaw('status, SUM(amount) as total, COUNT(*) as count')
             ->groupBy('status')
             ->get()
@@ -259,12 +247,5 @@ class BillController extends Controller
             });
 
         return response()->json($totals);
-    }
-
-    private function billsForUser()
-    {
-        return Bill::whereHas('account', function ($query) {
-            $query->where('user_id', auth()->id());
-        });
     }
 }

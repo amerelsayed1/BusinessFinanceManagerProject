@@ -36,30 +36,9 @@ class ExpenseController extends Controller
         return response()->json($expenses);
     }
 
-    public function store(Request $request)
+    public function store(StoreExpenseRequest $request)
     {
-        $validator = Validator::make($request->all(), [
-            'account_id' => 'required|exists:accounts,id',
-            'category_id' => 'nullable|exists:expense_categories,id',
-            'amount' => 'required|numeric|min:0.01',
-            'date' => 'required|date',
-            'description' => 'nullable|string',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json($validator->errors(), 422);
-        }
-
-        // Verify account belongs to user
-        $account = Account::where('id', $request->account_id)
-            ->where('user_id', auth()->id())
-            ->firstOrFail();
-
-        // Check sufficient balance
-        if ($account->balance < $request->amount) {
-            return response()->json(['error' => 'Insufficient account balance'], 400);
-        }
-
+        // Validation already done in request class
         DB::beginTransaction();
         try {
             $expense = Expense::create([
@@ -72,19 +51,18 @@ class ExpenseController extends Controller
             ]);
 
             // Decrease account balance
+            $account = Account::lockForUpdate()->findOrFail($request->account_id);
             $account->decrement('balance', $request->amount);
 
             DB::commit();
 
             $expense->load(['account', 'category']);
 
-            return response()->json([
-                'message' => 'Expense created successfully',
-                'expense' => $expense,
-            ], 201);
+            return $this->success($expense, 'Expense created successfully', 201);
+
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json(['error' => 'Failed to create expense: ' . $e->getMessage()], 500);
+            return $this->error('Failed to create expense: ' . $e->getMessage(), 500);
         }
     }
 

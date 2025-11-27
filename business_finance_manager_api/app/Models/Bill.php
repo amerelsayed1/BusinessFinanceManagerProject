@@ -4,9 +4,13 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * @method static where(string $string, int|string|null $id)
+ */
 class Bill extends Model
 {
     protected $fillable = [
+        'user_id',
         'description',
         'amount',
         'date',
