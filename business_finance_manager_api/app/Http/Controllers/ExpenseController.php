@@ -3,6 +3,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreExpenseRequest;
 use App\Models\Expense;
 use App\Models\Account;
 use Illuminate\Http\Request;
