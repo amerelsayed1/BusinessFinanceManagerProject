@@ -35,6 +35,20 @@ export default {
       note: data.note ?? '',
     })
   },
+
+  update(id, data) {
+    return api.put(`/expenses/${id}`, {
+      account_id: data.account_id,
+      category_id: data.category_id,
+      amount: data.amount,
+      date: data.date,
+      note: data.note ?? '',
+    })
+  },
+
+  delete(id) {
+    return api.delete(`/expenses/${id}`)
+  },
 }
 
 export const useExpenseService = () => ({

@@ -45,27 +45,39 @@ const handleLogout = async () => {
           >
             Accounts
           </RouterLink>
-          <RouterLink
-            to="/expenses"
-            class="block px-3 py-2 rounded-lg hover:bg-gray-100"
-            active-class="bg-gray-100 font-semibold"
-          >
-            Expenses
-          </RouterLink>
-          <RouterLink
-            to="/purchases"
-            class="block px-3 py-2 rounded-lg hover:bg-gray-100"
-            active-class="bg-gray-100 font-semibold"
-          >
-            Purchases
-          </RouterLink>
-          <RouterLink
-            to="/transfers"
-            class="block px-3 py-2 rounded-lg hover:bg-gray-100"
-            active-class="bg-gray-100 font-semibold"
-          >
-            Transfers
-          </RouterLink>
+          <div class="pt-2">
+            <p class="px-3 text-xs uppercase text-gray-500">Accounting</p>
+            <div class="mt-1 space-y-1">
+              <RouterLink
+                to="/income"
+                class="block px-3 py-2 rounded-lg hover:bg-gray-100"
+                active-class="bg-gray-100 font-semibold"
+              >
+                Income
+              </RouterLink>
+              <RouterLink
+                to="/expenses"
+                class="block px-3 py-2 rounded-lg hover:bg-gray-100"
+                active-class="bg-gray-100 font-semibold"
+              >
+                Expenses
+              </RouterLink>
+              <RouterLink
+                to="/purchases"
+                class="block px-3 py-2 rounded-lg hover:bg-gray-100"
+                active-class="bg-gray-100 font-semibold"
+              >
+                Purchases
+              </RouterLink>
+              <RouterLink
+                to="/transfers"
+                class="block px-3 py-2 rounded-lg hover:bg-gray-100"
+                active-class="bg-gray-100 font-semibold"
+              >
+                Transfers
+              </RouterLink>
+            </div>
+          </div>
           <RouterLink
             to="/reports"
             class="block px-3 py-2 rounded-lg hover:bg-gray-100"

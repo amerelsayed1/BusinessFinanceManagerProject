@@ -28,6 +28,18 @@ const form = ref({
   invoice_image: null,
 })
 
+const editId = ref(null)
+const editForm = ref({
+  date: '',
+  account_id: '',
+  supplier_name: '',
+  reference: '',
+  total_amount: '',
+  note: '',
+  invoice_image: null,
+  invoice_image_url: '',
+})
+
 const loadAccounts = async () => {
   const response = await accountService.getAll()
   accounts.value = response.data
@@ -76,8 +88,64 @@ const submitPurchase = async () => {
       note: '',
       invoice_image: null,
     }
+    window.alert('Purchase added successfully')
   } catch (e) {
     error.value = e.response?.data?.message || 'Could not create purchase.'
+  }
+}
+
+const startEdit = (purchase) => {
+  editId.value = purchase.id
+  editForm.value = {
+    date: purchase.date,
+    account_id: purchase.account_id,
+    supplier_name: purchase.supplier_name || '',
+    reference: purchase.reference || '',
+    total_amount: purchase.total_amount,
+    note: purchase.note || '',
+    invoice_image: null,
+    invoice_image_url: purchase.invoice_image_url || '',
+  }
+}
+
+const handleEditFileChange = (event) => {
+  const [file] = event.target.files
+  editForm.value.invoice_image = file || null
+}
+
+const cancelEdit = () => {
+  editId.value = null
+  editForm.value.invoice_image = null
+}
+
+const updatePurchase = async () => {
+  if (!editId.value) return
+  const data = new FormData()
+  Object.entries(editForm.value).forEach(([key, value]) => {
+    if (key === 'invoice_image_url') return
+    if (value !== null && value !== '') {
+      data.append(key, value)
+    }
+  })
+
+  try {
+    await purchaseService.update(editId.value, data)
+    await loadPurchases()
+    editId.value = null
+    window.alert('Purchase updated successfully')
+  } catch (e) {
+    error.value = e.response?.data?.message || 'Could not update purchase.'
+  }
+}
+
+const deletePurchase = async (id) => {
+  if (!confirm('Are you sure you want to delete this purchase?')) return
+  try {
+    await purchaseService.delete(id)
+    purchases.value = purchases.value.filter((p) => p.id !== id)
+    window.alert('Purchase deleted successfully')
+  } catch (e) {
+    error.value = e.response?.data?.message || 'Could not delete purchase.'
   }
 }
 
@@ -174,27 +242,63 @@ onMounted(async () => {
               <th class="p-2">Account</th>
               <th class="p-2">Amount</th>
               <th class="p-2">Invoice</th>
+              <th class="p-2 text-right">Actions</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="item in purchases" :key="item.id" class="border-b">
-              <td class="p-2">{{ item.date }}</td>
-              <td class="p-2">{{ item.supplier_name || '-' }}</td>
-              <td class="p-2">{{ item.reference || '-' }}</td>
-              <td class="p-2">{{ item.account?.name || accounts.find(a => a.id === item.account_id)?.name }}</td>
-              <td class="p-2 font-semibold">{{ Number(item.total_amount || 0).toFixed(2) }} {{ currency }}</td>
-              <td class="p-2">
-                <a
-                  v-if="item.invoice_image_url"
-                  :href="item.invoice_image_url"
-                  target="_blank"
-                  class="text-blue-600 underline"
-                  rel="noopener"
-                >
-                  View invoice
-                </a>
-                <span v-else class="text-gray-500 text-sm">No file</span>
-              </td>
+            <tr v-for="item in purchases" :key="item.id" class="border-b align-top">
+              <template v-if="editId === item.id">
+                <td class="p-2">
+                  <input v-model="editForm.date" type="date" class="border rounded px-2 py-1 w-full" />
+                </td>
+                <td class="p-2">
+                  <input v-model="editForm.supplier_name" type="text" class="border rounded px-2 py-1 w-full" />
+                </td>
+                <td class="p-2">
+                  <input v-model="editForm.reference" type="text" class="border rounded px-2 py-1 w-full" />
+                </td>
+                <td class="p-2">
+                  <select v-model="editForm.account_id" class="border rounded px-2 py-1 w-full">
+                    <option v-for="acc in accounts" :key="acc.id" :value="acc.id">{{ acc.name }}</option>
+                  </select>
+                </td>
+                <td class="p-2">
+                  <input v-model.number="editForm.total_amount" type="number" min="0" class="border rounded px-2 py-1 w-full" />
+                </td>
+                <td class="p-2 space-y-2">
+                  <div class="text-sm text-gray-600" v-if="editForm.invoice_image_url">
+                    <a :href="editForm.invoice_image_url" target="_blank" class="text-blue-600 underline" rel="noopener">Current</a>
+                  </div>
+                  <input type="file" accept="image/*" @change="handleEditFileChange" class="border rounded px-2 py-1 w-full" />
+                </td>
+                <td class="p-2 text-right space-x-2 whitespace-nowrap">
+                  <button class="text-sm text-green-700" @click="updatePurchase">Save</button>
+                  <button class="text-sm text-gray-600" @click="cancelEdit">Cancel</button>
+                </td>
+              </template>
+              <template v-else>
+                <td class="p-2">{{ item.date }}</td>
+                <td class="p-2">{{ item.supplier_name || '-' }}</td>
+                <td class="p-2">{{ item.reference || '-' }}</td>
+                <td class="p-2">{{ item.account?.name || accounts.find(a => a.id === item.account_id)?.name }}</td>
+                <td class="p-2 font-semibold">{{ Number(item.total_amount || 0).toFixed(2) }} {{ currency }}</td>
+                <td class="p-2">
+                  <a
+                    v-if="item.invoice_image_url"
+                    :href="item.invoice_image_url"
+                    target="_blank"
+                    class="text-blue-600 underline"
+                    rel="noopener"
+                  >
+                    View invoice
+                  </a>
+                  <span v-else class="text-gray-500 text-sm">No file</span>
+                </td>
+                <td class="p-2 text-right space-x-3 whitespace-nowrap">
+                  <button class="text-blue-600" @click="startEdit(item)">Edit</button>
+                  <button class="text-red-600" @click="deletePurchase(item.id)">Delete</button>
+                </td>
+              </template>
             </tr>
           </tbody>
         </table>

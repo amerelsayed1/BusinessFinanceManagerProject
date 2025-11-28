@@ -30,6 +30,15 @@ const form = ref({
   note: '',
 })
 
+const editId = ref(null)
+const editForm = ref({
+  date: '',
+  account_id: '',
+  category_id: '',
+  amount: '',
+  note: '',
+})
+
 const loadAccounts = async () => {
   const response = await accountService.getAll()
   accounts.value = response.data
@@ -69,8 +78,47 @@ const submitExpense = async () => {
     await loadExpenses()
     form.value.note = ''
     form.value.amount = ''
+    window.alert('Expense added successfully')
   } catch (e) {
     error.value = e.response?.data?.message || 'Could not create expense.'
+  }
+}
+
+const startEdit = (expense) => {
+  editId.value = expense.id
+  editForm.value = {
+    date: expense.date,
+    account_id: expense.account_id,
+    category_id: expense.category_id,
+    amount: expense.amount,
+    note: expense.note || '',
+  }
+}
+
+const cancelEdit = () => {
+  editId.value = null
+}
+
+const updateExpense = async () => {
+  if (!editId.value) return
+  try {
+    await expenseService.update(editId.value, editForm.value)
+    await loadExpenses()
+    editId.value = null
+    window.alert('Expense updated successfully')
+  } catch (e) {
+    error.value = e.response?.data?.message || 'Could not update expense.'
+  }
+}
+
+const deleteExpense = async (id) => {
+  if (!confirm('Are you sure you want to delete this expense?')) return
+  try {
+    await expenseService.delete(id)
+    expenses.value = expenses.value.filter((e) => e.id !== id)
+    window.alert('Expense deleted successfully')
+  } catch (e) {
+    error.value = e.response?.data?.message || 'Could not delete expense.'
   }
 }
 
@@ -163,15 +211,47 @@ onMounted(async () => {
               <th class="p-2">Category</th>
               <th class="p-2">Amount</th>
               <th class="p-2">Note</th>
+              <th class="p-2 text-right">Actions</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="item in expenses" :key="item.id" class="border-b">
-              <td class="p-2">{{ item.date }}</td>
-              <td class="p-2">{{ item.account?.name || accounts.find(a => a.id === item.account_id)?.name }}</td>
-              <td class="p-2">{{ item.category?.name || categories.find(c => c.id === item.category_id)?.name }}</td>
-              <td class="p-2 font-semibold">{{ Number(item.amount || 0).toFixed(2) }} {{ currency }}</td>
-              <td class="p-2 text-sm text-gray-600">{{ item.note }}</td>
+            <tr v-for="item in expenses" :key="item.id" class="border-b align-top">
+              <template v-if="editId === item.id">
+                <td class="p-2">
+                  <input v-model="editForm.date" type="date" class="border rounded px-2 py-1 w-full" />
+                </td>
+                <td class="p-2">
+                  <select v-model="editForm.account_id" class="border rounded px-2 py-1 w-full">
+                    <option v-for="acc in accounts" :key="acc.id" :value="acc.id">{{ acc.name }}</option>
+                  </select>
+                </td>
+                <td class="p-2">
+                  <select v-model="editForm.category_id" class="border rounded px-2 py-1 w-full">
+                    <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
+                  </select>
+                </td>
+                <td class="p-2">
+                  <input v-model.number="editForm.amount" type="number" min="0" class="border rounded px-2 py-1 w-full" />
+                </td>
+                <td class="p-2">
+                  <textarea v-model="editForm.note" rows="2" class="border rounded px-2 py-1 w-full"></textarea>
+                </td>
+                <td class="p-2 text-right space-x-2 whitespace-nowrap">
+                  <button class="text-sm text-green-700" @click="updateExpense">Save</button>
+                  <button class="text-sm text-gray-600" @click="cancelEdit">Cancel</button>
+                </td>
+              </template>
+              <template v-else>
+                <td class="p-2">{{ item.date }}</td>
+                <td class="p-2">{{ item.account?.name || accounts.find(a => a.id === item.account_id)?.name }}</td>
+                <td class="p-2">{{ item.category?.name || categories.find(c => c.id === item.category_id)?.name }}</td>
+                <td class="p-2 font-semibold">{{ Number(item.amount || 0).toFixed(2) }} {{ currency }}</td>
+                <td class="p-2 text-sm text-gray-600">{{ item.note }}</td>
+                <td class="p-2 text-right space-x-3 whitespace-nowrap">
+                  <button class="text-blue-600" @click="startEdit(item)">Edit</button>
+                  <button class="text-red-600" @click="deleteExpense(item.id)">Delete</button>
+                </td>
+              </template>
             </tr>
           </tbody>
         </table>
