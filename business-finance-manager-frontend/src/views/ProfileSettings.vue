@@ -50,7 +50,11 @@
       <h2>Expense Categories</h2>
 
       <div class="category-list">
-        <div v-for="category in categories" :key="category.id" class="category-item">
+        <div
+            v-for="category in categories"
+            :key="category.id"
+            class="category-item"
+        >
           <span class="category-name">
             {{ category.name }}
             <span v-if="category.is_default" class="badge">Default</span>
@@ -75,24 +79,83 @@
       </button>
     </div>
 
-    <!-- Category Modal -->
-    <div v-if="showCategoryModal" class="modal">
-      <div class="modal-content">
-        <h3>{{ editingCategory ? 'Edit' : 'Add' }} Category</h3>
-        <form @submit.prevent="saveCategory">
-          <div class="form-group">
-            <label>Category Name</label>
-            <input v-model="categoryForm.name" type="text" required />
-          </div>
-          <div class="modal-actions">
-            <button type="button" @click="closeCategoryModal" class="btn btn-secondary">
-              Cancel
-            </button>
-            <button type="submit" class="btn btn-primary">
-              Save
-            </button>
-          </div>
-        </form>
+    <!-- Category Modal (SalePro-style) -->
+    <div
+        v-if="showCategoryModal"
+        class="modal"
+        @click.self="closeCategoryModal"
+    >
+      <div class="modal-dialog">
+        <!-- Header -->
+        <div class="modal-header">
+          <h3 class="modal-title">
+            {{ editingCategory ? 'Edit Category' : 'Add Category' }}
+          </h3>
+          <button
+              type="button"
+              class="modal-close"
+              @click="closeCategoryModal"
+          >
+            ×
+          </button>
+        </div>
+
+        <!-- Body -->
+        <div class="modal-body">
+          <p class="modal-note">
+            The field labels marked with <span>*</span> are required input fields.
+          </p>
+
+          <form @submit.prevent="saveCategory">
+            <div class="modal-grid">
+              <!-- Left column (similar to name + parent in SalePro) -->
+              <div class="modal-col">
+                <div class="form-group">
+                  <label>
+                    Name <span class="required">*</span>
+                  </label>
+                  <input
+                      v-model="categoryForm.name"
+                      type="text"
+                      required
+                      placeholder="Type category name"
+                  />
+                </div>
+
+                <!-- If later you support parent category, add it here -->
+                <!--
+                <div class="form-group">
+                  <label>Parent Category</label>
+                  <select>
+                    <option>No parent</option>
+                  </select>
+                </div>
+                -->
+              </div>
+
+              <div class="modal-col">
+                <div class="form-group">
+                  <label>Image</label>
+                  <input type="file" />
+                </div>
+              </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="modal-footer">
+              <button
+                  type="button"
+                  class="btn btn-secondary"
+                  @click="closeCategoryModal"
+              >
+                Cancel
+              </button>
+              <button type="submit" class="btn btn-primary">
+                {{ editingCategory ? 'Save Changes' : 'Submit' }}
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   </div>
@@ -179,7 +242,10 @@ export default {
     async saveCategory() {
       try {
         if (this.editingCategory) {
-          await api.put(`/expense-categories/${this.editingCategory.id}`, this.categoryForm);
+          await api.put(
+              `/expense-categories/${this.editingCategory.id}`,
+              this.categoryForm,
+          );
         } else {
           await api.post('/expense-categories', this.categoryForm);
         }
@@ -265,31 +331,97 @@ export default {
   margin-left: 10px;
 }
 
+/* ==== Modal (SalePro-like) ==== */
+
 .modal {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0,0,0,0.5);
+  inset: 0;
+  background: rgba(0,0,0,0.45);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
 }
 
-.modal-content {
-  background: white;
-  padding: 20px;
-  border-radius: 8px;
-  min-width: 400px;
+.modal-dialog {
+  background: #fff;
+  border-radius: 10px;
+  min-width: 520px;
+  max-width: 780px;
+  box-shadow: 0 15px 40px rgba(0,0,0,0.18);
+  overflow: hidden;
 }
 
-.modal-actions {
+.modal-header {
   display: flex;
-  gap: 10px;
-  margin-top: 15px;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid #eee;
 }
+
+.modal-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.modal-close {
+  border: none;
+  background: transparent;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  color: #999;
+}
+
+.modal-close:hover {
+  color: #555;
+}
+
+.modal-body {
+  padding: 18px 20px 22px;
+}
+
+.modal-note {
+  font-size: 13px;
+  font-style: italic;
+  color: #666;
+  margin-bottom: 16px;
+}
+
+.modal-note span {
+  color: #e55353;
+}
+
+.modal-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+@media (min-width: 768px) {
+  .modal-grid {
+    grid-template-columns: 1.5fr 1fr;
+  }
+}
+
+.modal-col {
+  /* placeholder for future right column fields */
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.required {
+  color: #e55353;
+}
+
+/* Buttons */
 
 .btn {
   padding: 8px 16px;
@@ -299,8 +431,12 @@ export default {
 }
 
 .btn-primary {
-  background: #007bff;
+  background: #6c4ad9;
   color: white;
+}
+
+.btn-primary:hover {
+  background: #593ac5;
 }
 
 .btn-secondary {
