@@ -38,6 +38,25 @@ const {
   goToProfile,
 } = useTabs()
 
+const dashboardTab = computed(() =>
+  mainTabs.find((tab) => tab.id === TABS.HOME),
+)
+
+const accountingTabs = computed(() =>
+  mainTabs.filter(
+      (tab) => tab.id === TABS.ACCOUNTS || tab.id === TABS.TRANSFERS,
+  ),
+)
+
+const otherTabs = computed(() =>
+  mainTabs.filter(
+      (tab) =>
+          tab.id !== TABS.HOME &&
+          tab.id !== TABS.ACCOUNTS &&
+          tab.id !== TABS.TRANSFERS,
+  ),
+)
+
 // Accounts
 const {
   accounts,
@@ -156,7 +175,36 @@ const handleLogout = async () => {
 
         <nav class="flex-1 overflow-y-auto px-2 py-4 space-y-1">
           <button
-              v-for="tab in mainTabs"
+              v-if="dashboardTab"
+              @click="currentTab = dashboardTab.id"
+              :class="tabButtonClasses(dashboardTab.id)"
+          >
+            <component
+                :is="dashboardTab.icon"
+                class="w-4 h-4"
+            />
+            <span>{{ dashboardTab.label }}</span>
+          </button>
+
+          <p class="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+            Accounting
+          </p>
+
+          <button
+              v-for="tab in accountingTabs"
+              :key="tab.id"
+              @click="currentTab = tab.id"
+              :class="[tabButtonClasses(tab.id), 'pl-6']"
+          >
+            <component
+                :is="tab.icon"
+                class="w-4 h-4"
+            />
+            <span>{{ tab.label }}</span>
+          </button>
+
+          <button
+              v-for="tab in otherTabs"
               :key="tab.id"
               @click="currentTab = tab.id"
               :class="tabButtonClasses(tab.id)"
