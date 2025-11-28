@@ -44,9 +44,11 @@ Route::prefix('v1')->group(function () {
             ->except(['show']);
 
         // Account Transfers
-        Route::get('/accounts/transfers', [AccountTransferController::class, 'index']);
-        Route::apiResource('transfers', AccountTransferController::class)
-            ->except(['update']);
+        Route::prefix('accounts')->group(function () {
+            Route::apiResource('transfers', AccountTransferController::class)
+                ->except(['create', 'edit'])
+                ->where(['transfer' => '[0-9]+']);
+        });
 
         // Accounts
         Route::apiResource('accounts', AccountController::class)->whereNumber('account');
