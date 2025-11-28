@@ -44,11 +44,12 @@ Route::prefix('v1')->group(function () {
             ->except(['show']);
 
         // Account Transfers
+        Route::get('/accounts/transfers', [AccountTransferController::class, 'index']);
         Route::apiResource('transfers', AccountTransferController::class)
             ->except(['update']);
 
         // Accounts
-        Route::apiResource('accounts', AccountController::class);
+        Route::apiResource('accounts', AccountController::class)->whereNumber('account');
         Route::post('/accounts/deposit', [AccountController::class, 'deposit']);
         Route::post('/accounts/withdraw', [AccountController::class, 'withdraw']);
         Route::post('/accounts/transfer', [AccountController::class, 'transfer']);
