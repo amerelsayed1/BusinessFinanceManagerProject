@@ -22,6 +22,7 @@ import { useBillsManager } from './composables/useBillsManager'
 
 const store = useStore()
 const router = useRouter()
+const TAB_STORAGE_KEY = 'bfm-current-tab'
 
 const isAuthenticated = computed(() => store.getters['auth/isAuthenticated'])
 const currency = ref('EGP')
@@ -56,6 +57,19 @@ const otherTabs = computed(() =>
           tab.id !== TABS.TRANSFERS,
   ),
 )
+
+const restoreTabFromStorage = () => {
+  if (typeof localStorage === 'undefined') return
+
+  const savedTab = localStorage.getItem(TAB_STORAGE_KEY)
+  const isValidTab =
+      savedTab &&
+      (mainTabs.some((tab) => tab.id === savedTab) || savedTab === TABS.PROFILE)
+
+  if (isValidTab) {
+    currentTab.value = savedTab
+  }
+}
 
 // Accounts
 const {
@@ -130,6 +144,8 @@ const initData = async () => {
 }
 
 onMounted(() => {
+  restoreTabFromStorage()
+
   if (isAuthenticated.value) {
     initData()
   }
@@ -139,6 +155,12 @@ watch(isAuthenticated, (loggedIn) => {
   if (loggedIn) {
     initData()
   }
+})
+
+watch(currentTab, (tab) => {
+  if (typeof localStorage === 'undefined') return
+
+  localStorage.setItem(TAB_STORAGE_KEY, tab)
 })
 
 const handleLogout = async () => {
@@ -173,56 +195,66 @@ const handleLogout = async () => {
           </span>
         </div>
 
-        <nav class="flex-1 overflow-y-auto px-2 py-4 space-y-1">
-          <button
-              v-if="dashboardTab"
-              @click="currentTab = dashboardTab.id"
-              :class="tabButtonClasses(dashboardTab.id)"
-          >
-            <component
-                :is="dashboardTab.icon"
-                class="w-4 h-4"
-            />
-            <span>{{ dashboardTab.label }}</span>
-          </button>
+        <nav class="flex-1 overflow-y-auto px-3 py-4 space-y-4 text-purple-700">
+          <div class="space-y-1">
+            <button
+                v-if="dashboardTab"
+                @click="currentTab = dashboardTab.id"
+                :class="tabButtonClasses(dashboardTab.id)"
+            >
+              <component
+                  :is="dashboardTab.icon"
+                  class="w-4 h-4"
+              />
+              <span>{{ dashboardTab.label }}</span>
+            </button>
+          </div>
 
-          <p class="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-            Accounting
-          </p>
+          <div class="space-y-2">
+            <p class="px-3 text-xs font-semibold uppercase tracking-wide text-purple-700">
+              Accounting
+            </p>
 
-          <button
-              v-for="tab in accountingTabs"
-              :key="tab.id"
-              @click="currentTab = tab.id"
-              :class="[tabButtonClasses(tab.id), 'pl-6']"
-          >
-            <component
-                :is="tab.icon"
-                class="w-4 h-4"
-            />
-            <span>{{ tab.label }}</span>
-          </button>
+            <div class="bg-gray-50 rounded-xl p-2 space-y-1 shadow-inner">
+              <button
+                  v-for="tab in accountingTabs"
+                  :key="tab.id"
+                  @click="currentTab = tab.id"
+                  :class="[tabButtonClasses(tab.id), 'pl-6']"
+              >
+                <component
+                    :is="tab.icon"
+                    class="w-4 h-4"
+                />
+                <span>{{ tab.label }}</span>
+              </button>
+            </div>
+          </div>
 
-          <button
-              v-for="tab in otherTabs"
-              :key="tab.id"
-              @click="currentTab = tab.id"
-              :class="tabButtonClasses(tab.id)"
-          >
-            <component
-                :is="tab.icon"
-                class="w-4 h-4"
-            />
-            <span>{{ tab.label }}</span>
-          </button>
+          <div class="space-y-1">
+            <button
+                v-for="tab in otherTabs"
+                :key="tab.id"
+                @click="currentTab = tab.id"
+                :class="tabButtonClasses(tab.id)"
+            >
+              <component
+                  :is="tab.icon"
+                  class="w-4 h-4"
+              />
+              <span>{{ tab.label }}</span>
+            </button>
+          </div>
 
-          <button
-              @click="handleLogout"
-              class="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors text-gray-700 hover:bg-red-50 hover:text-red-600"
-          >
-            <LogOut class="w-4 h-4" />
-            <span>Logout</span>
-          </button>
+          <div class="pt-2 border-t border-gray-200">
+            <button
+                @click="handleLogout"
+                class="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors text-gray-700 hover:bg-red-50 hover:text-red-600"
+            >
+              <LogOut class="w-4 h-4" />
+              <span>Logout</span>
+            </button>
+          </div>
         </nav>
 
         <div class="border-t border-gray-200 p-3">
