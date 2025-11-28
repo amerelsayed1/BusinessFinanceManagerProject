@@ -56,33 +56,3 @@ export default {
     return api.delete(`/accounts/transfers/${id}`)
   },
 }
-
-export const useAccountService = () => ({
-  getAll: (params = {}) => api.get('/accounts', { params }),
-  getById: (id) => api.get(`/accounts/${id}`),
-  getBalance: (id) => api.get(`/accounts/${id}/balance`),
-  create: (data) =>
-    api.post('/accounts', {
-      name: data.name,
-      type: data.type,
-      opening_balance: data.opening_balance ?? 0,
-    }),
-  update: (id, data) =>
-    api.put(`/accounts/${id}`, {
-      name: data.name,
-      type: data.type,
-      opening_balance: data.opening_balance,
-    }),
-  delete: (id) => api.delete(`/accounts/${id}`),
-  transfer: (fromAccountId, toAccountId, amount, date, note = '') =>
-    api.post('/accounts/transfers', {
-      from_account_id: fromAccountId,
-      to_account_id: toAccountId,
-      amount,
-      date,
-      note,
-    }),
-  listTransfers: (params = {}) => api.get('/accounts/transfers', { params }),
-  updateTransfer: (id, data) => api.put(`/accounts/transfers/${id}`, data),
-  deleteTransfer: (id) => api.delete(`/accounts/transfers/${id}`),
-})

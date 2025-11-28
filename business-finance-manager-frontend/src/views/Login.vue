@@ -49,12 +49,6 @@
             {{ loading ? 'Logging in...' : 'Login' }}
           </button>
 
-          <div class="form-footer">
-            <p>
-              Don't have an account?
-              <router-link to="/register" class="link">Register here</router-link>
-            </p>
-          </div>
         </form>
       </div>
     </div>
