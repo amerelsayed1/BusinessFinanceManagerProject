@@ -55,7 +55,7 @@ class ExpenseController extends Controller
                 'category_id' => $request->category_id,
                 'amount' => $request->amount,
                 'date' => $request->date,
-                'description' => $request->description,
+                'description' => $request->input('note', ''),
             ]);
 
             // Decrease account balance
@@ -91,7 +91,7 @@ class ExpenseController extends Controller
             'category_id' => 'nullable|exists:expense_categories,id',
             'amount' => 'sometimes|numeric|min:0.01',
             'date' => 'sometimes|date',
-            'description' => 'nullable|string',
+            'note' => 'nullable|string',
         ]);
 
         if ($validator->fails()) {
@@ -107,7 +107,13 @@ class ExpenseController extends Controller
             $oldAccount->increment('current_balance', $oldAmount);
 
             // Update expense
-            $expense->update($request->only(['account_id', 'category_id', 'amount', 'date', 'description']));
+            $expense->update([
+                'account_id' => $request->input('account_id', $expense->account_id),
+                'category_id' => $request->input('category_id', $expense->category_id),
+                'amount' => $request->input('amount', $expense->amount),
+                'date' => $request->input('date', $expense->date),
+                'description' => $request->input('note', $expense->description ?? ''),
+            ]);
 
             // Deduct from new/same account
             $newAccount = Account::where('user_id', auth()->id())

@@ -15,6 +15,8 @@ class Expense extends Model
         'description',
     ];
 
+    protected $appends = ['note'];
+
     protected $casts = [
         'date' => 'date',
         'amount' => 'decimal:2',
@@ -38,5 +40,10 @@ class Expense extends Model
     public function stockMovement()
     {
         return $this->hasOne(StockMovement::class);
+    }
+
+    public function getNoteAttribute()
+    {
+        return $this->description;
     }
 }
