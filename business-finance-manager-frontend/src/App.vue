@@ -22,6 +22,8 @@ import { useBillsManager } from './composables/useBillsManager'
 
 const store = useStore()
 const router = useRouter()
+const TAB_STORAGE_KEY = 'bfm-current-tab'
+const ACCOUNTING_SECTION_STORAGE_KEY = 'bfm-accounting-open'
 
 const isAuthenticated = computed(() => store.getters['auth/isAuthenticated'])
 const currency = ref('EGP')
@@ -37,6 +39,50 @@ const {
   goToTransfers,
   goToProfile,
 } = useTabs()
+
+const dashboardTab = computed(() =>
+  mainTabs.find((tab) => tab.id === TABS.HOME),
+)
+
+const accountingTabs = computed(() =>
+  mainTabs.filter(
+      (tab) => tab.id === TABS.ACCOUNTS || tab.id === TABS.TRANSFERS,
+  ),
+)
+
+const otherTabs = computed(() =>
+  mainTabs.filter(
+      (tab) =>
+          tab.id !== TABS.HOME &&
+          tab.id !== TABS.ACCOUNTS &&
+          tab.id !== TABS.TRANSFERS,
+  ),
+)
+
+const isAccountingOpen = ref(true)
+
+const restoreTabFromStorage = () => {
+  if (typeof localStorage === 'undefined') return
+
+  const savedTab = localStorage.getItem(TAB_STORAGE_KEY)
+  const isValidTab =
+      savedTab &&
+      (mainTabs.some((tab) => tab.id === savedTab) || savedTab === TABS.PROFILE)
+
+  if (isValidTab) {
+    currentTab.value = savedTab
+  }
+}
+
+const restoreAccountingState = () => {
+  if (typeof localStorage === 'undefined') return
+
+  const saved = localStorage.getItem(ACCOUNTING_SECTION_STORAGE_KEY)
+
+  if (saved === 'true' || saved === 'false') {
+    isAccountingOpen.value = saved === 'true'
+  }
+}
 
 // Accounts
 const {
@@ -111,6 +157,9 @@ const initData = async () => {
 }
 
 onMounted(() => {
+  restoreTabFromStorage()
+  restoreAccountingState()
+
   if (isAuthenticated.value) {
     initData()
   }
@@ -120,6 +169,18 @@ watch(isAuthenticated, (loggedIn) => {
   if (loggedIn) {
     initData()
   }
+})
+
+watch(currentTab, (tab) => {
+  if (typeof localStorage === 'undefined') return
+
+  localStorage.setItem(TAB_STORAGE_KEY, tab)
+})
+
+watch(isAccountingOpen, (isOpen) => {
+  if (typeof localStorage === 'undefined') return
+
+  localStorage.setItem(ACCOUNTING_SECTION_STORAGE_KEY, String(isOpen))
 })
 
 const handleLogout = async () => {
@@ -154,27 +215,116 @@ const handleLogout = async () => {
           </span>
         </div>
 
-        <nav class="flex-1 overflow-y-auto px-2 py-4 space-y-1">
-          <button
-              v-for="tab in mainTabs"
-              :key="tab.id"
-              @click="currentTab = tab.id"
-              :class="tabButtonClasses(tab.id)"
-          >
-            <component
-                :is="tab.icon"
-                class="w-4 h-4"
-            />
-            <span>{{ tab.label }}</span>
-          </button>
+        <nav class="flex-1 overflow-y-auto px-3 py-4 space-y-4 text-purple-700">
+          <div class="space-y-1">
+            <button
+                v-if="dashboardTab"
+                @click="currentTab = dashboardTab.id"
+                :class="[tabButtonClasses(dashboardTab.id), 'justify-between text-purple-700']"
+            >
+              <span class="flex items-center gap-2">
+                <component
+                    :is="dashboardTab.icon"
+                    class="w-4 h-4"
+                />
+                <span>{{ dashboardTab.label }}</span>
+              </span>
+              <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="h-4 w-4 text-purple-400"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
 
-          <button
-              @click="handleLogout"
-              class="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors text-gray-700 hover:bg-red-50 hover:text-red-600"
-          >
-            <LogOut class="w-4 h-4" />
-            <span>Logout</span>
-          </button>
+          <div class="space-y-3">
+            <button
+                type="button"
+                class="w-full flex items-center justify-between text-sm font-semibold text-purple-700 px-3"
+                @click="isAccountingOpen = !isAccountingOpen"
+            >
+              <span class="flex items-center gap-2">
+                <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="h-4 w-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                >
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                </svg>
+                <span>Accounting</span>
+              </span>
+              <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="h-3 w-3 transition-transform duration-200 text-purple-500"
+                  :class="{ 'rotate-90': isAccountingOpen }"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+
+            <div
+                v-show="isAccountingOpen"
+                class="bg-gray-50 rounded-2xl p-3 space-y-1 shadow-inner"
+            >
+              <button
+                  v-for="tab in accountingTabs"
+                  :key="tab.id"
+                  @click="currentTab = tab.id"
+                  :class="[tabButtonClasses(tab.id), 'justify-start gap-3 text-gray-700 hover:text-purple-700 bg-white/0 hover:bg-white rounded-lg px-4']"
+              >
+                <component
+                    :is="tab.icon"
+                    class="w-4 h-4 text-purple-500"
+                />
+                <span class="font-medium">{{ tab.label }}</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="space-y-1">
+            <button
+                v-for="tab in otherTabs"
+                :key="tab.id"
+                @click="currentTab = tab.id"
+                :class="[tabButtonClasses(tab.id), 'justify-between text-purple-700']"
+            >
+              <span class="flex items-center gap-2">
+                <component
+                    :is="tab.icon"
+                    class="w-4 h-4"
+                />
+                <span>{{ tab.label }}</span>
+              </span>
+              <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="h-4 w-4 text-purple-400"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
+
+          <div class="pt-2 border-t border-gray-200">
+            <button
+                @click="handleLogout"
+                class="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors text-gray-700 hover:bg-red-50 hover:text-red-600"
+            >
+              <LogOut class="w-4 h-4" />
+              <span>Logout</span>
+            </button>
+          </div>
         </nav>
 
         <div class="border-t border-gray-200 p-3">
