@@ -23,6 +23,7 @@ import { useBillsManager } from './composables/useBillsManager'
 const store = useStore()
 const router = useRouter()
 const TAB_STORAGE_KEY = 'bfm-current-tab'
+const ACCOUNTING_SECTION_STORAGE_KEY = 'bfm-accounting-open'
 
 const isAuthenticated = computed(() => store.getters['auth/isAuthenticated'])
 const currency = ref('EGP')
@@ -58,6 +59,8 @@ const otherTabs = computed(() =>
   ),
 )
 
+const isAccountingOpen = ref(true)
+
 const restoreTabFromStorage = () => {
   if (typeof localStorage === 'undefined') return
 
@@ -68,6 +71,16 @@ const restoreTabFromStorage = () => {
 
   if (isValidTab) {
     currentTab.value = savedTab
+  }
+}
+
+const restoreAccountingState = () => {
+  if (typeof localStorage === 'undefined') return
+
+  const saved = localStorage.getItem(ACCOUNTING_SECTION_STORAGE_KEY)
+
+  if (saved === 'true' || saved === 'false') {
+    isAccountingOpen.value = saved === 'true'
   }
 }
 
@@ -145,6 +158,7 @@ const initData = async () => {
 
 onMounted(() => {
   restoreTabFromStorage()
+  restoreAccountingState()
 
   if (isAuthenticated.value) {
     initData()
@@ -161,6 +175,12 @@ watch(currentTab, (tab) => {
   if (typeof localStorage === 'undefined') return
 
   localStorage.setItem(TAB_STORAGE_KEY, tab)
+})
+
+watch(isAccountingOpen, (isOpen) => {
+  if (typeof localStorage === 'undefined') return
+
+  localStorage.setItem(ACCOUNTING_SECTION_STORAGE_KEY, String(isOpen))
 })
 
 const handleLogout = async () => {
@@ -211,11 +231,28 @@ const handleLogout = async () => {
           </div>
 
           <div class="space-y-2">
-            <p class="px-3 text-xs font-semibold uppercase tracking-wide text-purple-700">
-              Accounting
-            </p>
+            <button
+                type="button"
+                class="px-3 w-full flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-purple-700"
+                @click="isAccountingOpen = !isAccountingOpen"
+            >
+              <span>Accounting</span>
+              <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="h-3 w-3 transition-transform duration-200"
+                  :class="{ 'rotate-90': isAccountingOpen }"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
 
-            <div class="bg-gray-50 rounded-xl p-2 space-y-1 shadow-inner">
+            <div
+                v-show="isAccountingOpen"
+                class="bg-gray-50 rounded-xl p-2 space-y-1 shadow-inner"
+            >
               <button
                   v-for="tab in accountingTabs"
                   :key="tab.id"
