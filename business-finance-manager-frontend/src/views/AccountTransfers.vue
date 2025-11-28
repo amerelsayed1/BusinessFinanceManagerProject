@@ -14,6 +14,7 @@ const showCreateModal = ref(false)
 const showEditModal = ref(false)
 const submitting = ref(false)
 const error = ref('')
+const success = ref('')
 
 const form = ref({
   from_account_id: '',
@@ -54,6 +55,7 @@ const createTransfer = async () => {
   }
   submitting.value = true
   error.value = ''
+  success.value = ''
   try {
     await accountService.transfer(
       form.value.from_account_id,
@@ -64,6 +66,7 @@ const createTransfer = async () => {
     )
     await Promise.all([loadTransfers(), loadAccounts()])
     closeCreateModal()
+    success.value = 'Transfer created successfully.'
   } catch (e) {
     error.value = e.response?.data?.message || 'Failed to create transfer.'
   } finally {
@@ -73,6 +76,7 @@ const createTransfer = async () => {
 
 const closeCreateModal = () => {
   showCreateModal.value = false
+  success.value = ''
   form.value = {
     from_account_id: '',
     to_account_id: '',
@@ -120,7 +124,7 @@ const updateTransfer = async () => {
     })
     await Promise.all([loadTransfers(), loadAccounts()])
     closeEdit()
-    alert('Transfer updated successfully')
+    success.value = 'Transfer updated successfully.'
   } catch (e) {
     error.value = e.response?.data?.message || 'Failed to update transfer.'
   } finally {
@@ -132,10 +136,11 @@ const deleteTransfer = async (id) => {
   if (!confirm('Are you sure you want to delete this transfer?')) return
   submitting.value = true
   error.value = ''
+  success.value = ''
   try {
     await accountService.deleteTransfer(id)
     await Promise.all([loadTransfers(), loadAccounts()])
-    alert('Transfer deleted successfully')
+    success.value = 'Transfer deleted successfully.'
   } catch (e) {
     error.value = e.response?.data?.message || 'Failed to delete transfer.'
   } finally {
@@ -160,6 +165,7 @@ onMounted(async () => {
     </div>
 
     <div v-if="error" class="p-3 bg-red-100 text-red-700 rounded">{{ error }}</div>
+    <div v-if="success" class="p-3 bg-green-100 text-green-700 rounded">{{ success }}</div>
 
     <div class="bg-white p-4 rounded-lg shadow-sm border">
       <div class="flex items-center justify-between mb-3">

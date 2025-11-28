@@ -59,7 +59,7 @@ class AccountTransferController extends Controller
                 'to_account_id' => $request->to_account_id,
                 'amount' => $request->amount,
                 'date' => $request->date,
-                'note' => $request->note,
+                'note' => $request->input('note', '') ?? '',
             ]);
 
             // Update account balances
@@ -124,7 +124,7 @@ class AccountTransferController extends Controller
                 'to_account_id' => $request->to_account_id,
                 'amount' => $request->amount,
                 'date' => $request->date,
-                'note' => $request->note,
+                'note' => $request->input('note', '') ?? '',
             ]);
 
             $transfer->load(['fromAccount', 'toAccount']);
