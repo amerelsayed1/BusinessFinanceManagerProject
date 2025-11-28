@@ -49,13 +49,16 @@ class ExpenseController extends Controller
                 ->lockForUpdate()
                 ->findOrFail($request->account_id);
 
+            $note = $request->input('note');
+            $description = $note === null ? '' : $note;
+
             $expense = Expense::create([
                 'user_id' => auth()->id(),
                 'account_id' => $account->id,
                 'category_id' => $request->category_id,
                 'amount' => $request->amount,
                 'date' => $request->date,
-                'description' => $request->input('note', ''),
+                'description' => $description,
             ]);
 
             // Decrease account balance
@@ -103,6 +106,9 @@ class ExpenseController extends Controller
             $oldAccount = $expense->account()->lockForUpdate()->first();
             $oldAmount = $expense->amount;
 
+            $note = $request->input('note');
+            $description = $note === null ? ($expense->description ?? '') : $note;
+
             // Restore old account balance
             $oldAccount->increment('current_balance', $oldAmount);
 
@@ -112,7 +118,7 @@ class ExpenseController extends Controller
                 'category_id' => $request->input('category_id', $expense->category_id),
                 'amount' => $request->input('amount', $expense->amount),
                 'date' => $request->input('date', $expense->date),
-                'description' => $request->input('note', $expense->description ?? ''),
+                'description' => $description,
             ]);
 
             // Deduct from new/same account
