@@ -91,12 +91,11 @@ Route::prefix('v1')->group(function () {
             ->except(['update']);
 
         // Incomes
-        Route::apiResource('incomes', IncomeController::class)
-            ->only(['index', 'store', 'show']);
+        Route::apiResource('incomes', IncomeController::class);
 
         // Purchases
         Route::apiResource('purchases', PurchaseController::class)
-            ->only(['index', 'store', 'show', 'update']);
+            ->except(['create', 'edit']);
 
         // Reports
         Route::get('/reports/accountant-export', [ReportsController::class, 'accountantExport']);

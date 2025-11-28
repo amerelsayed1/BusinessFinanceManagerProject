@@ -40,11 +40,11 @@ class PurchaseController extends Controller
             'invoice_image' => 'nullable|image',
         ]);
 
-        $account = Account::where('user_id', auth()->id())
-            ->lockForUpdate()
-            ->findOrFail($data['account_id']);
+        return DB::transaction(function () use ($data, $request) {
+            $account = Account::where('user_id', auth()->id())
+                ->lockForUpdate()
+                ->findOrFail($data['account_id']);
 
-        return DB::transaction(function () use ($data, $account, $request) {
             $path = null;
             if ($request->hasFile('invoice_image')) {
                 $path = $request->file('invoice_image')->store('purchase_invoices', 'public');
@@ -78,8 +78,6 @@ class PurchaseController extends Controller
 
     public function update(Request $request, $id)
     {
-        $purchase = Purchase::where('user_id', auth()->id())->findOrFail($id);
-
         $data = $request->validate([
             'date' => 'sometimes|date',
             'account_id' => 'sometimes|exists:accounts,id',
@@ -90,15 +88,20 @@ class PurchaseController extends Controller
             'invoice_image' => 'nullable|image',
         ]);
 
-        return DB::transaction(function () use ($data, $request, $purchase) {
-            $oldAccount = $purchase->account()->lockForUpdate()->first();
+        return DB::transaction(function () use ($data, $request, $id) {
+            $purchase = Purchase::where('user_id', auth()->id())
+                ->lockForUpdate()
+                ->findOrFail($id);
+
+            $oldAccount = Account::where('user_id', auth()->id())
+                ->lockForUpdate()
+                ->findOrFail($purchase->account_id);
             $oldAmount = $purchase->total_amount;
 
-            // Revert previous balance impact
             $oldAccount->increment('current_balance', $oldAmount);
 
             $account = $oldAccount;
-            if (isset($data['account_id'])) {
+            if (isset($data['account_id']) && $data['account_id'] != $purchase->account_id) {
                 $account = Account::where('user_id', auth()->id())
                     ->lockForUpdate()
                     ->findOrFail($data['account_id']);
@@ -111,11 +114,36 @@ class PurchaseController extends Controller
                 $data['invoice_image_path'] = $request->file('invoice_image')->store('purchase_invoices', 'public');
             }
 
+            unset($data['invoice_image']);
+
             $purchase->update(array_merge($data, ['account_id' => $account->id]));
 
             $account->decrement('current_balance', $purchase->total_amount);
 
-            return response()->json($purchase);
+            return response()->json($purchase->fresh('account'));
+        });
+    }
+
+    public function destroy($id)
+    {
+        return DB::transaction(function () use ($id) {
+            $purchase = Purchase::where('user_id', auth()->id())
+                ->lockForUpdate()
+                ->findOrFail($id);
+
+            $account = Account::where('user_id', auth()->id())
+                ->lockForUpdate()
+                ->findOrFail($purchase->account_id);
+
+            $account->increment('current_balance', $purchase->total_amount);
+
+            if ($purchase->invoice_image_path) {
+                Storage::disk('public')->delete($purchase->invoice_image_path);
+            }
+
+            $purchase->delete();
+
+            return response()->json(['message' => 'Purchase deleted successfully']);
         });
     }
 }

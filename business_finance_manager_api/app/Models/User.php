@@ -80,6 +80,11 @@ class User extends Authenticatable implements JWTSubject
         return $this->hasMany(PosOrder::class);
     }
 
+    public function incomes()
+    {
+        return $this->hasMany(Income::class);
+    }
+
     public function shopifySettings()
     {
         return $this->hasOne(ShopifySettings::class);
