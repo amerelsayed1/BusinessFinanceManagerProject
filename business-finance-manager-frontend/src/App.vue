@@ -220,26 +220,48 @@ const handleLogout = async () => {
             <button
                 v-if="dashboardTab"
                 @click="currentTab = dashboardTab.id"
-                :class="tabButtonClasses(dashboardTab.id)"
+                :class="[tabButtonClasses(dashboardTab.id), 'justify-between text-purple-700']"
             >
-              <component
-                  :is="dashboardTab.icon"
-                  class="w-4 h-4"
-              />
-              <span>{{ dashboardTab.label }}</span>
+              <span class="flex items-center gap-2">
+                <component
+                    :is="dashboardTab.icon"
+                    class="w-4 h-4"
+                />
+                <span>{{ dashboardTab.label }}</span>
+              </span>
+              <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="h-4 w-4 text-purple-400"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+              </svg>
             </button>
           </div>
 
-          <div class="space-y-2">
+          <div class="space-y-3">
             <button
                 type="button"
-                class="px-3 w-full flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-purple-700"
+                class="w-full flex items-center justify-between text-sm font-semibold text-purple-700 px-3"
                 @click="isAccountingOpen = !isAccountingOpen"
             >
-              <span>Accounting</span>
+              <span class="flex items-center gap-2">
+                <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="h-4 w-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                >
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                </svg>
+                <span>Accounting</span>
+              </span>
               <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  class="h-3 w-3 transition-transform duration-200"
+                  class="h-3 w-3 transition-transform duration-200 text-purple-500"
                   :class="{ 'rotate-90': isAccountingOpen }"
                   fill="none"
                   viewBox="0 0 24 24"
@@ -251,19 +273,19 @@ const handleLogout = async () => {
 
             <div
                 v-show="isAccountingOpen"
-                class="bg-gray-50 rounded-xl p-2 space-y-1 shadow-inner"
+                class="bg-gray-50 rounded-2xl p-3 space-y-1 shadow-inner"
             >
               <button
                   v-for="tab in accountingTabs"
                   :key="tab.id"
                   @click="currentTab = tab.id"
-                  :class="[tabButtonClasses(tab.id), 'pl-6']"
+                  :class="[tabButtonClasses(tab.id), 'justify-start gap-3 text-gray-700 hover:text-purple-700 bg-white/0 hover:bg-white rounded-lg px-4']"
               >
                 <component
                     :is="tab.icon"
-                    class="w-4 h-4"
+                    class="w-4 h-4 text-purple-500"
                 />
-                <span>{{ tab.label }}</span>
+                <span class="font-medium">{{ tab.label }}</span>
               </button>
             </div>
           </div>
@@ -273,13 +295,24 @@ const handleLogout = async () => {
                 v-for="tab in otherTabs"
                 :key="tab.id"
                 @click="currentTab = tab.id"
-                :class="tabButtonClasses(tab.id)"
+                :class="[tabButtonClasses(tab.id), 'justify-between text-purple-700']"
             >
-              <component
-                  :is="tab.icon"
-                  class="w-4 h-4"
-              />
-              <span>{{ tab.label }}</span>
+              <span class="flex items-center gap-2">
+                <component
+                    :is="tab.icon"
+                    class="w-4 h-4"
+                />
+                <span>{{ tab.label }}</span>
+              </span>
+              <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="h-4 w-4 text-purple-400"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+              </svg>
             </button>
           </div>
 
