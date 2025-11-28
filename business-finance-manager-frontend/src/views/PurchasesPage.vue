@@ -2,6 +2,8 @@
 import { computed, onMounted, ref } from 'vue'
 import purchaseService from '../services/purchaseService'
 import accountService from '../services/accountService'
+import ModalDialog from '../components/ModalDialog.vue'
+import { formatDateTime } from '../utils/date'
 import { useStore } from 'vuex'
 
 const store = useStore()
@@ -28,7 +30,8 @@ const form = ref({
   invoice_image: null,
 })
 
-const editId = ref(null)
+const showEditModal = ref(false)
+const selectedPurchase = ref(null)
 const editForm = ref({
   date: '',
   account_id: '',
@@ -39,6 +42,8 @@ const editForm = ref({
   invoice_image: null,
   invoice_image_url: '',
 })
+const showInvoiceModal = ref(false)
+const invoicePreview = ref(null)
 
 const loadAccounts = async () => {
   const response = await accountService.getAll()
@@ -95,7 +100,7 @@ const submitPurchase = async () => {
 }
 
 const startEdit = (purchase) => {
-  editId.value = purchase.id
+  selectedPurchase.value = purchase
   editForm.value = {
     date: purchase.date,
     account_id: purchase.account_id,
@@ -106,6 +111,7 @@ const startEdit = (purchase) => {
     invoice_image: null,
     invoice_image_url: purchase.invoice_image_url || '',
   }
+  showEditModal.value = true
 }
 
 const handleEditFileChange = (event) => {
@@ -113,13 +119,23 @@ const handleEditFileChange = (event) => {
   editForm.value.invoice_image = file || null
 }
 
-const cancelEdit = () => {
-  editId.value = null
-  editForm.value.invoice_image = null
+const closeEdit = () => {
+  showEditModal.value = false
+  selectedPurchase.value = null
+  editForm.value = {
+    date: '',
+    account_id: '',
+    supplier_name: '',
+    reference: '',
+    total_amount: '',
+    note: '',
+    invoice_image: null,
+    invoice_image_url: '',
+  }
 }
 
 const updatePurchase = async () => {
-  if (!editId.value) return
+  if (!selectedPurchase.value) return
   const data = new FormData()
   Object.entries(editForm.value).forEach(([key, value]) => {
     if (key === 'invoice_image_url') return
@@ -129,9 +145,9 @@ const updatePurchase = async () => {
   })
 
   try {
-    await purchaseService.update(editId.value, data)
+    await purchaseService.update(selectedPurchase.value.id, data)
     await loadPurchases()
-    editId.value = null
+    closeEdit()
     window.alert('Purchase updated successfully')
   } catch (e) {
     error.value = e.response?.data?.message || 'Could not update purchase.'
@@ -147,6 +163,16 @@ const deletePurchase = async (id) => {
   } catch (e) {
     error.value = e.response?.data?.message || 'Could not delete purchase.'
   }
+}
+
+const openInvoiceModal = (purchase) => {
+  invoicePreview.value = purchase
+  showInvoiceModal.value = true
+}
+
+const closeInvoiceModal = () => {
+  showInvoiceModal.value = false
+  invoicePreview.value = null
 }
 
 onMounted(async () => {
@@ -247,63 +273,107 @@ onMounted(async () => {
           </thead>
           <tbody>
             <tr v-for="item in purchases" :key="item.id" class="border-b align-top">
-              <template v-if="editId === item.id">
-                <td class="p-2">
-                  <input v-model="editForm.date" type="date" class="border rounded px-2 py-1 w-full" />
-                </td>
-                <td class="p-2">
-                  <input v-model="editForm.supplier_name" type="text" class="border rounded px-2 py-1 w-full" />
-                </td>
-                <td class="p-2">
-                  <input v-model="editForm.reference" type="text" class="border rounded px-2 py-1 w-full" />
-                </td>
-                <td class="p-2">
-                  <select v-model="editForm.account_id" class="border rounded px-2 py-1 w-full">
-                    <option v-for="acc in accounts" :key="acc.id" :value="acc.id">{{ acc.name }}</option>
-                  </select>
-                </td>
-                <td class="p-2">
-                  <input v-model.number="editForm.total_amount" type="number" min="0" class="border rounded px-2 py-1 w-full" />
-                </td>
-                <td class="p-2 space-y-2">
-                  <div class="text-sm text-gray-600" v-if="editForm.invoice_image_url">
-                    <a :href="editForm.invoice_image_url" target="_blank" class="text-blue-600 underline" rel="noopener">Current</a>
-                  </div>
-                  <input type="file" accept="image/*" @change="handleEditFileChange" class="border rounded px-2 py-1 w-full" />
-                </td>
-                <td class="p-2 text-right space-x-2 whitespace-nowrap">
-                  <button class="text-sm text-green-700" @click="updatePurchase">Save</button>
-                  <button class="text-sm text-gray-600" @click="cancelEdit">Cancel</button>
-                </td>
-              </template>
-              <template v-else>
-                <td class="p-2">{{ item.date }}</td>
-                <td class="p-2">{{ item.supplier_name || '-' }}</td>
-                <td class="p-2">{{ item.reference || '-' }}</td>
-                <td class="p-2">{{ item.account?.name || accounts.find(a => a.id === item.account_id)?.name }}</td>
-                <td class="p-2 font-semibold">{{ Number(item.total_amount || 0).toFixed(2) }} {{ currency }}</td>
-                <td class="p-2">
-                  <a
-                    v-if="item.invoice_image_url"
-                    :href="item.invoice_image_url"
-                    target="_blank"
-                    class="text-blue-600 underline"
-                    rel="noopener"
-                  >
-                    View invoice
-                  </a>
-                  <span v-else class="text-gray-500 text-sm">No file</span>
-                </td>
-                <td class="p-2 text-right space-x-3 whitespace-nowrap">
-                  <button class="text-blue-600" @click="startEdit(item)">Edit</button>
-                  <button class="text-red-600" @click="deletePurchase(item.id)">Delete</button>
-                </td>
-              </template>
+              <td class="p-2">{{ formatDateTime(item.date) }}</td>
+              <td class="p-2">{{ item.supplier_name || '-' }}</td>
+              <td class="p-2">{{ item.reference || '-' }}</td>
+              <td class="p-2">{{ item.account?.name || accounts.find(a => a.id === item.account_id)?.name }}</td>
+              <td class="p-2 font-semibold">{{ Number(item.total_amount || 0).toFixed(2) }} {{ currency }}</td>
+              <td class="p-2">
+                <button
+                  v-if="item.invoice_image_url"
+                  class="text-blue-600 underline"
+                  @click="openInvoiceModal(item)"
+                >
+                  View invoice
+                </button>
+                <span v-else class="text-gray-500 text-sm">No file</span>
+              </td>
+              <td class="p-2 text-right space-x-3 whitespace-nowrap">
+                <button class="text-blue-600" @click="startEdit(item)">Edit</button>
+                <button class="text-red-600" @click="deletePurchase(item.id)">Delete</button>
+              </td>
             </tr>
           </tbody>
         </table>
         <p v-if="!purchases.length" class="text-gray-500 text-sm py-4">No purchases found.</p>
       </div>
     </div>
+
+    <ModalDialog v-model:modelValue="showEditModal" title="Edit Purchase" @close="closeEdit">
+      <div class="grid gap-3 md:grid-cols-2">
+        <div class="flex flex-col gap-1">
+          <label class="text-sm text-gray-700">Date</label>
+          <input v-model="editForm.date" type="date" class="border rounded px-3 py-2" />
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-sm text-gray-700">Account</label>
+          <select v-model="editForm.account_id" class="border rounded px-3 py-2">
+            <option v-for="acc in accounts" :key="acc.id" :value="acc.id">{{ acc.name }}</option>
+          </select>
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-sm text-gray-700">Supplier Name</label>
+          <input v-model="editForm.supplier_name" type="text" class="border rounded px-3 py-2" />
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-sm text-gray-700">Reference</label>
+          <input v-model="editForm.reference" type="text" class="border rounded px-3 py-2" />
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-sm text-gray-700">Total Amount</label>
+          <input v-model.number="editForm.total_amount" type="number" min="0" class="border rounded px-3 py-2" />
+        </div>
+        <div class="flex flex-col gap-1 space-y-1">
+          <label class="text-sm text-gray-700">Invoice Image</label>
+          <div v-if="editForm.invoice_image_url" class="text-sm text-gray-600">
+            <button class="text-blue-600 underline" type="button" @click="openInvoiceModal(selectedPurchase)">
+              View current invoice
+            </button>
+          </div>
+          <input type="file" accept="image/*" @change="handleEditFileChange" class="border rounded px-3 py-2" />
+        </div>
+        <div class="md:col-span-2 flex flex-col gap-1">
+          <label class="text-sm text-gray-700">Note</label>
+          <textarea v-model="editForm.note" rows="2" class="border rounded px-3 py-2"></textarea>
+        </div>
+      </div>
+      <template #footer>
+        <button class="px-4 py-2 border rounded" @click="closeEdit">Cancel</button>
+        <button class="px-4 py-2 bg-blue-600 text-white rounded" @click="updatePurchase">Save</button>
+      </template>
+    </ModalDialog>
+
+    <ModalDialog v-model:modelValue="showInvoiceModal" title="Invoice Image" @close="closeInvoiceModal">
+      <div v-if="invoicePreview" class="space-y-4">
+        <div class="space-y-1 text-sm text-gray-700">
+          <p><span class="font-semibold">Supplier:</span> {{ invoicePreview.supplier_name || '-' }}</p>
+          <p><span class="font-semibold">Reference:</span> {{ invoicePreview.reference || '-' }}</p>
+          <p><span class="font-semibold">Date:</span> {{ formatDateTime(invoicePreview.date) }}</p>
+        </div>
+        <div class="flex justify-center">
+          <img
+            v-if="invoicePreview.invoice_image_url"
+            :src="invoicePreview.invoice_image_url"
+            alt="Invoice"
+            class="max-h-[80vh] max-w-[90vw] object-contain"
+          />
+          <p v-else class="text-gray-500 text-sm">No invoice image available.</p>
+        </div>
+        <div class="text-right">
+          <a
+            v-if="invoicePreview?.invoice_image_url"
+            :href="invoicePreview.invoice_image_url"
+            target="_blank"
+            rel="noopener"
+            class="text-blue-600 underline text-sm"
+          >
+            Open in new tab
+          </a>
+        </div>
+      </div>
+      <template #footer>
+        <button class="px-4 py-2 border rounded" @click="closeInvoiceModal">Close</button>
+      </template>
+    </ModalDialog>
   </div>
 </template>

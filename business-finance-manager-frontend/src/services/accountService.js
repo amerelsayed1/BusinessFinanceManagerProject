@@ -47,6 +47,14 @@ export default {
   listTransfers(params = {}) {
     return api.get('/accounts/transfers', { params })
   },
+
+  updateTransfer(id, data) {
+    return api.put(`/accounts/transfers/${id}`, data)
+  },
+
+  deleteTransfer(id) {
+    return api.delete(`/accounts/transfers/${id}`)
+  },
 }
 
 export const useAccountService = () => ({
@@ -75,4 +83,6 @@ export const useAccountService = () => ({
       note,
     }),
   listTransfers: (params = {}) => api.get('/accounts/transfers', { params }),
+  updateTransfer: (id, data) => api.put(`/accounts/transfers/${id}`, data),
+  deleteTransfer: (id) => api.delete(`/accounts/transfers/${id}`),
 })

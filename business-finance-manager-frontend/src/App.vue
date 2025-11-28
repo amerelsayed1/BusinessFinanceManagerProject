@@ -1,14 +1,32 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useStore } from 'vuex'
-import { useRouter, RouterView, RouterLink } from 'vue-router'
+import { useRoute, useRouter, RouterView, RouterLink } from 'vue-router'
 import { LogOut, User } from 'lucide-vue-next'
 
 const store = useStore()
 const router = useRouter()
+const route = useRoute()
+
+const accountingRoutes = ['Income', 'Expenses', 'Purchases', 'Transfers', 'AccountTransfers']
+const isAccountingOpen = ref(false)
 
 const isAuthenticated = computed(() => store.getters['auth/isAuthenticated'])
 const currentUser = computed(() => store.getters['auth/currentUser'])
+
+watch(
+  () => route.name,
+  (name) => {
+    if (accountingRoutes.includes(name)) {
+      isAccountingOpen.value = true
+    }
+  },
+  { immediate: true },
+)
+
+const toggleAccounting = () => {
+  isAccountingOpen.value = !isAccountingOpen.value
+}
 
 const handleLogout = async () => {
   try {
@@ -46,8 +64,15 @@ const handleLogout = async () => {
             Accounts
           </RouterLink>
           <div class="pt-2">
-            <p class="px-3 text-xs uppercase text-gray-500">Accounting</p>
-            <div class="mt-1 space-y-1">
+            <button
+              type="button"
+              class="w-full flex items-center justify-between px-3 py-2 text-left text-sm font-semibold text-gray-800 hover:bg-gray-100 rounded-lg"
+              @click="toggleAccounting"
+            >
+              <span class="text-xs uppercase tracking-wide text-gray-600">Accounting</span>
+              <span class="text-gray-500 text-xs">{{ isAccountingOpen ? '−' : '+' }}</span>
+            </button>
+            <div v-if="isAccountingOpen" class="mt-1 space-y-1 pl-2 border-l border-gray-200 ml-2">
               <RouterLink
                 to="/income"
                 class="block px-3 py-2 rounded-lg hover:bg-gray-100"

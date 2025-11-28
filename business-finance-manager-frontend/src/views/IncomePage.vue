@@ -3,6 +3,8 @@ import { computed, onMounted, ref } from 'vue'
 import { useStore } from 'vuex'
 import incomeService from '../services/incomeService'
 import accountService from '../services/accountService'
+import ModalDialog from '../components/ModalDialog.vue'
+import { formatDateTime } from '../utils/date'
 
 const store = useStore()
 const currency = computed(() => store.getters['auth/defaultCurrency'])
@@ -19,7 +21,8 @@ const form = ref({
   note: '',
 })
 
-const editId = ref(null)
+const showEditModal = ref(false)
+const selectedIncome = ref(null)
 const editForm = ref({
   date: '',
   account_id: '',
@@ -69,25 +72,33 @@ const submitIncome = async () => {
 }
 
 const startEdit = (item) => {
-  editId.value = item.id
+  selectedIncome.value = item
   editForm.value = {
     date: item.date,
     account_id: item.account_id,
     amount: item.amount,
     note: item.note || '',
   }
+  showEditModal.value = true
 }
 
-const cancelEdit = () => {
-  editId.value = null
+const closeEdit = () => {
+  showEditModal.value = false
+  selectedIncome.value = null
+  editForm.value = {
+    date: '',
+    account_id: '',
+    amount: '',
+    note: '',
+  }
 }
 
 const updateIncome = async () => {
-  if (!editId.value) return
+  if (!selectedIncome.value) return
   try {
-    await incomeService.update(editId.value, editForm.value)
+    await incomeService.update(selectedIncome.value.id, editForm.value)
     await loadIncomes()
-    editId.value = null
+    closeEdit()
     window.alert('Income updated successfully')
   } catch (e) {
     error.value = e.response?.data?.message || 'Could not update income.'
@@ -168,41 +179,46 @@ onMounted(async () => {
           </thead>
           <tbody>
             <tr v-for="item in incomes" :key="item.id" class="border-b align-top">
-              <template v-if="editId === item.id">
-                <td class="p-2">
-                  <input v-model="editForm.date" type="date" class="border rounded px-2 py-1 w-full" />
-                </td>
-                <td class="p-2">
-                  <select v-model="editForm.account_id" class="border rounded px-2 py-1 w-full">
-                    <option v-for="acc in accounts" :key="acc.id" :value="acc.id">{{ acc.name }}</option>
-                  </select>
-                </td>
-                <td class="p-2">
-                  <input v-model.number="editForm.amount" type="number" min="0" class="border rounded px-2 py-1 w-full" />
-                </td>
-                <td class="p-2">
-                  <textarea v-model="editForm.note" rows="2" class="border rounded px-2 py-1 w-full"></textarea>
-                </td>
-                <td class="p-2 text-right space-x-2 whitespace-nowrap">
-                  <button class="text-sm text-green-700" @click="updateIncome">Save</button>
-                  <button class="text-sm text-gray-600" @click="cancelEdit">Cancel</button>
-                </td>
-              </template>
-              <template v-else>
-                <td class="p-2">{{ item.date }}</td>
-                <td class="p-2">{{ item.account?.name || accounts.find((a) => a.id === item.account_id)?.name }}</td>
-                <td class="p-2 font-semibold">{{ Number(item.amount || 0).toFixed(2) }} {{ currency }}</td>
-                <td class="p-2 text-sm text-gray-600">{{ item.note || '-' }}</td>
-                <td class="p-2 text-right space-x-3 whitespace-nowrap">
-                  <button class="text-blue-600" @click="startEdit(item)">Edit</button>
-                  <button class="text-red-600" @click="deleteIncome(item.id)">Delete</button>
-                </td>
-              </template>
+              <td class="p-2">{{ formatDateTime(item.date) }}</td>
+              <td class="p-2">{{ item.account?.name || accounts.find((a) => a.id === item.account_id)?.name }}</td>
+              <td class="p-2 font-semibold">{{ Number(item.amount || 0).toFixed(2) }} {{ currency }}</td>
+              <td class="p-2 text-sm text-gray-600">{{ item.note || '-' }}</td>
+              <td class="p-2 text-right space-x-3 whitespace-nowrap">
+                <button class="text-blue-600" @click="startEdit(item)">Edit</button>
+                <button class="text-red-600" @click="deleteIncome(item.id)">Delete</button>
+              </td>
             </tr>
           </tbody>
         </table>
         <p v-if="!incomes.length" class="text-gray-500 text-sm py-4">No income found.</p>
       </div>
     </div>
+
+    <ModalDialog v-model:modelValue="showEditModal" title="Edit Income" @close="closeEdit">
+      <div class="grid gap-3 md:grid-cols-2">
+        <div class="flex flex-col gap-1">
+          <label class="text-sm text-gray-700">Date</label>
+          <input v-model="editForm.date" type="date" class="border rounded px-3 py-2" />
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-sm text-gray-700">Amount</label>
+          <input v-model.number="editForm.amount" type="number" min="0" class="border rounded px-3 py-2" />
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-sm text-gray-700">Account</label>
+          <select v-model="editForm.account_id" class="border rounded px-3 py-2">
+            <option v-for="acc in accounts" :key="acc.id" :value="acc.id">{{ acc.name }}</option>
+          </select>
+        </div>
+        <div class="md:col-span-2 flex flex-col gap-1">
+          <label class="text-sm text-gray-700">Note</label>
+          <textarea v-model="editForm.note" rows="2" class="border rounded px-3 py-2"></textarea>
+        </div>
+      </div>
+      <template #footer>
+        <button class="px-4 py-2 border rounded" @click="closeEdit">Cancel</button>
+        <button class="px-4 py-2 bg-blue-600 text-white rounded" @click="updateIncome">Save</button>
+      </template>
+    </ModalDialog>
   </div>
 </template>

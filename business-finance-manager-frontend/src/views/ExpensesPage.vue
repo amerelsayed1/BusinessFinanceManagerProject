@@ -3,6 +3,8 @@ import { computed, onMounted, ref } from 'vue'
 import expenseService from '../services/expenseService'
 import accountService from '../services/accountService'
 import api from '../services/api'
+import ModalDialog from '../components/ModalDialog.vue'
+import { formatDateTime } from '../utils/date'
 import { useStore } from 'vuex'
 
 const store = useStore()
@@ -30,7 +32,8 @@ const form = ref({
   note: '',
 })
 
-const editId = ref(null)
+const showEditModal = ref(false)
+const selectedExpense = ref(null)
 const editForm = ref({
   date: '',
   account_id: '',
@@ -85,7 +88,7 @@ const submitExpense = async () => {
 }
 
 const startEdit = (expense) => {
-  editId.value = expense.id
+  selectedExpense.value = expense
   editForm.value = {
     date: expense.date,
     account_id: expense.account_id,
@@ -93,18 +96,27 @@ const startEdit = (expense) => {
     amount: expense.amount,
     note: expense.note || '',
   }
+  showEditModal.value = true
 }
 
-const cancelEdit = () => {
-  editId.value = null
+const closeEdit = () => {
+  showEditModal.value = false
+  selectedExpense.value = null
+  editForm.value = {
+    date: '',
+    account_id: '',
+    category_id: '',
+    amount: '',
+    note: '',
+  }
 }
 
 const updateExpense = async () => {
-  if (!editId.value) return
+  if (!selectedExpense.value) return
   try {
-    await expenseService.update(editId.value, editForm.value)
+    await expenseService.update(selectedExpense.value.id, editForm.value)
     await loadExpenses()
-    editId.value = null
+    closeEdit()
     window.alert('Expense updated successfully')
   } catch (e) {
     error.value = e.response?.data?.message || 'Could not update expense.'
@@ -216,47 +228,53 @@ onMounted(async () => {
           </thead>
           <tbody>
             <tr v-for="item in expenses" :key="item.id" class="border-b align-top">
-              <template v-if="editId === item.id">
-                <td class="p-2">
-                  <input v-model="editForm.date" type="date" class="border rounded px-2 py-1 w-full" />
-                </td>
-                <td class="p-2">
-                  <select v-model="editForm.account_id" class="border rounded px-2 py-1 w-full">
-                    <option v-for="acc in accounts" :key="acc.id" :value="acc.id">{{ acc.name }}</option>
-                  </select>
-                </td>
-                <td class="p-2">
-                  <select v-model="editForm.category_id" class="border rounded px-2 py-1 w-full">
-                    <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
-                  </select>
-                </td>
-                <td class="p-2">
-                  <input v-model.number="editForm.amount" type="number" min="0" class="border rounded px-2 py-1 w-full" />
-                </td>
-                <td class="p-2">
-                  <textarea v-model="editForm.note" rows="2" class="border rounded px-2 py-1 w-full"></textarea>
-                </td>
-                <td class="p-2 text-right space-x-2 whitespace-nowrap">
-                  <button class="text-sm text-green-700" @click="updateExpense">Save</button>
-                  <button class="text-sm text-gray-600" @click="cancelEdit">Cancel</button>
-                </td>
-              </template>
-              <template v-else>
-                <td class="p-2">{{ item.date }}</td>
-                <td class="p-2">{{ item.account?.name || accounts.find(a => a.id === item.account_id)?.name }}</td>
-                <td class="p-2">{{ item.category?.name || categories.find(c => c.id === item.category_id)?.name }}</td>
-                <td class="p-2 font-semibold">{{ Number(item.amount || 0).toFixed(2) }} {{ currency }}</td>
-                <td class="p-2 text-sm text-gray-600">{{ item.note }}</td>
-                <td class="p-2 text-right space-x-3 whitespace-nowrap">
-                  <button class="text-blue-600" @click="startEdit(item)">Edit</button>
-                  <button class="text-red-600" @click="deleteExpense(item.id)">Delete</button>
-                </td>
-              </template>
+              <td class="p-2">{{ formatDateTime(item.date) }}</td>
+              <td class="p-2">{{ item.account?.name || accounts.find(a => a.id === item.account_id)?.name }}</td>
+              <td class="p-2">{{ item.category?.name || categories.find(c => c.id === item.category_id)?.name }}</td>
+              <td class="p-2 font-semibold">{{ Number(item.amount || 0).toFixed(2) }} {{ currency }}</td>
+              <td class="p-2 text-sm text-gray-600">{{ item.note }}</td>
+              <td class="p-2 text-right space-x-3 whitespace-nowrap">
+                <button class="text-blue-600" @click="startEdit(item)">Edit</button>
+                <button class="text-red-600" @click="deleteExpense(item.id)">Delete</button>
+              </td>
             </tr>
           </tbody>
         </table>
         <p v-if="!expenses.length" class="text-gray-500 text-sm py-4">No expenses found.</p>
       </div>
     </div>
+
+    <ModalDialog v-model:modelValue="showEditModal" title="Edit Expense" @close="closeEdit">
+      <div class="grid gap-3 md:grid-cols-2">
+        <div class="flex flex-col gap-1">
+          <label class="text-sm text-gray-700">Date</label>
+          <input v-model="editForm.date" type="date" class="border rounded px-3 py-2" />
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-sm text-gray-700">Amount</label>
+          <input v-model.number="editForm.amount" type="number" min="0" class="border rounded px-3 py-2" />
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-sm text-gray-700">Account</label>
+          <select v-model="editForm.account_id" class="border rounded px-3 py-2">
+            <option v-for="acc in accounts" :key="acc.id" :value="acc.id">{{ acc.name }}</option>
+          </select>
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-sm text-gray-700">Category</label>
+          <select v-model="editForm.category_id" class="border rounded px-3 py-2">
+            <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
+          </select>
+        </div>
+        <div class="md:col-span-2 flex flex-col gap-1">
+          <label class="text-sm text-gray-700">Note</label>
+          <textarea v-model="editForm.note" rows="2" class="border rounded px-3 py-2"></textarea>
+        </div>
+      </div>
+      <template #footer>
+        <button class="px-4 py-2 border rounded" @click="closeEdit">Cancel</button>
+        <button class="px-4 py-2 bg-blue-600 text-white rounded" @click="updateExpense">Save</button>
+      </template>
+    </ModalDialog>
   </div>
 </template>
