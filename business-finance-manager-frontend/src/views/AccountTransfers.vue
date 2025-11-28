@@ -40,7 +40,8 @@ const loadAccounts = async () => {
 const loadTransfers = async () => {
   try {
     const response = await accountService.listTransfers()
-    transfers.value = response.data
+    const payload = response.data?.data ?? response.data ?? []
+    transfers.value = Array.isArray(payload) ? payload : []
   } catch (e) {
     // listing is optional; ignore failures
   }

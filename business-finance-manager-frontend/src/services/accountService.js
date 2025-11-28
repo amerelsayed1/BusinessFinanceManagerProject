@@ -35,7 +35,7 @@ export default {
   },
 
   transfer(fromAccountId, toAccountId, amount, date, note = '') {
-    return api.post('/accounts/transfer', {
+    return api.post('/accounts/transfers', {
       from_account_id: fromAccountId,
       to_account_id: toAccountId,
       amount,
@@ -75,7 +75,7 @@ export const useAccountService = () => ({
     }),
   delete: (id) => api.delete(`/accounts/${id}`),
   transfer: (fromAccountId, toAccountId, amount, date, note = '') =>
-    api.post('/accounts/transfer', {
+    api.post('/accounts/transfers', {
       from_account_id: fromAccountId,
       to_account_id: toAccountId,
       amount,
