@@ -33,7 +33,7 @@ class StoreExpenseRequest extends FormRequest
             }
 
             // Verify sufficient balance
-            if ($account && $account->balance < $this->amount) {
+            if ($account && $account->current_balance < $this->amount) {
                 $validator->errors()->add('amount', 'Insufficient account balance.');
             }
         });

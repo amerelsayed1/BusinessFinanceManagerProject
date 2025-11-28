@@ -9,8 +9,11 @@ use App\Models\Expense;
 use App\Models\Invoice;
 use App\Models\MonthlySales;
 use App\Models\ExpenseCategory;
+use App\Models\Income;
+use App\Models\Purchase;
 use App\Models\PosOrder;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
 
 class DashboardController extends Controller
 {
@@ -22,7 +25,7 @@ class DashboardController extends Controller
         $endOfMonth = $now->copy()->endOfMonth();
 
         // Total Balance
-        $totalBalance = Account::where('user_id', $userId)->sum('balance');
+        $totalBalance = Account::where('user_id', $userId)->sum('current_balance');
 
         // Total Expenses (current month)
         $totalExpenses = Expense::where('user_id', $userId)
@@ -83,6 +86,62 @@ class DashboardController extends Controller
                 'ads_expenses' => (float) $adsExpenses,
             ],
             'currency' => $currency,
+        ]);
+    }
+
+    public function summary(Request $request)
+    {
+        $user = auth()->user();
+        $monthParam = $request->query('month', now()->format('Y-m'));
+        $start = Carbon::parse($monthParam . '-01')->startOfMonth();
+        $end = $start->copy()->endOfMonth();
+
+        $totalIncome = Income::where('user_id', $user->id)
+            ->whereBetween('date', [$start, $end])
+            ->sum('amount');
+
+        $expensesTotal = Expense::where('user_id', $user->id)
+            ->whereBetween('date', [$start, $end])
+            ->sum('amount');
+
+        $purchasesTotal = Purchase::where('user_id', $user->id)
+            ->whereBetween('date', [$start, $end])
+            ->sum('total_amount');
+
+        $expensesByCategory = Expense::where('user_id', $user->id)
+            ->whereBetween('date', [$start, $end])
+            ->selectRaw('category_id, SUM(amount) as total')
+            ->groupBy('category_id')
+            ->get();
+
+        $categoryNames = ExpenseCategory::where('user_id', $user->id)
+            ->pluck('name', 'id');
+
+        $expensesByCategory = $expensesByCategory->map(function ($item) use ($categoryNames) {
+            $name = $categoryNames[$item->category_id] ?? 'Uncategorized';
+            return [
+                'category' => $name,
+                'amount' => (float) $item->total,
+            ];
+        })->values()->toArray();
+
+        if ($purchasesTotal > 0) {
+            $expensesByCategory[] = [
+                'category' => 'Product Purchases',
+                'amount' => (float) $purchasesTotal,
+            ];
+        }
+
+        $totalExpenses = $expensesTotal + $purchasesTotal;
+
+        return response()->json([
+            'month' => $monthParam,
+            'currency' => $user->default_currency,
+            'total_income' => (float) $totalIncome,
+            'total_expenses' => (float) $totalExpenses,
+            'total_purchases' => (float) $purchasesTotal,
+            'net_profit' => (float) ($totalIncome - $totalExpenses),
+            'expenses_by_category' => $expensesByCategory,
         ]);
     }
 }

@@ -44,7 +44,7 @@ class AccountTransferController extends Controller
             ->firstOrFail();
 
         // Check sufficient balance
-        if ($fromAccount->balance < $request->amount) {
+        if ($fromAccount->current_balance < $request->amount) {
             return response()->json(['error' => 'Insufficient balance in source account'], 400);
         }
 
@@ -61,8 +61,8 @@ class AccountTransferController extends Controller
             ]);
 
             // Update account balances
-            $fromAccount->decrement('balance', $request->amount);
-            $toAccount->increment('balance', $request->amount);
+            $fromAccount->decrement('current_balance', $request->amount);
+            $toAccount->increment('current_balance', $request->amount);
 
             DB::commit();
 
@@ -97,8 +97,8 @@ class AccountTransferController extends Controller
             $fromAccount = $transfer->fromAccount;
             $toAccount = $transfer->toAccount;
 
-            $fromAccount->increment('balance', $transfer->amount);
-            $toAccount->decrement('balance', $transfer->amount);
+            $fromAccount->increment('current_balance', $transfer->amount);
+            $toAccount->decrement('current_balance', $transfer->amount);
 
             $transfer->delete();
 

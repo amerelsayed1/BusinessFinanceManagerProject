@@ -18,8 +18,11 @@ class ExpenseController extends Controller
             ->where('user_id', auth()->id());
 
         // Filter by date range
-        if ($request->has('start_date') && $request->has('end_date')) {
-            $query->whereBetween('date', [$request->start_date, $request->end_date]);
+        $from = $request->input('from', $request->input('start_date'));
+        $to = $request->input('to', $request->input('end_date'));
+
+        if ($from && $to) {
+            $query->whereBetween('date', [$from, $to]);
         }
 
         // Filter by category
@@ -42,9 +45,13 @@ class ExpenseController extends Controller
         // Validation already done in request class
         DB::beginTransaction();
         try {
+            $account = Account::where('user_id', auth()->id())
+                ->lockForUpdate()
+                ->findOrFail($request->account_id);
+
             $expense = Expense::create([
                 'user_id' => auth()->id(),
-                'account_id' => $request->account_id,
+                'account_id' => $account->id,
                 'category_id' => $request->category_id,
                 'amount' => $request->amount,
                 'date' => $request->date,
@@ -52,8 +59,7 @@ class ExpenseController extends Controller
             ]);
 
             // Decrease account balance
-            $account = Account::lockForUpdate()->findOrFail($request->account_id);
-            $account->decrement('balance', $request->amount);
+            $account->decrement('current_balance', $request->amount);
 
             DB::commit();
 
@@ -94,24 +100,26 @@ class ExpenseController extends Controller
 
         DB::beginTransaction();
         try {
-            $oldAccount = $expense->account;
+            $oldAccount = $expense->account()->lockForUpdate()->first();
             $oldAmount = $expense->amount;
 
             // Restore old account balance
-            $oldAccount->increment('balance', $oldAmount);
+            $oldAccount->increment('current_balance', $oldAmount);
 
             // Update expense
             $expense->update($request->only(['account_id', 'category_id', 'amount', 'date', 'description']));
 
             // Deduct from new/same account
-            $newAccount = Account::findOrFail($expense->account_id);
+            $newAccount = Account::where('user_id', auth()->id())
+                ->lockForUpdate()
+                ->findOrFail($expense->account_id);
 
-            if ($newAccount->balance < $expense->amount) {
+            if ($newAccount->current_balance < $expense->amount) {
                 DB::rollBack();
                 return response()->json(['error' => 'Insufficient balance in account'], 400);
             }
 
-            $newAccount->decrement('balance', $expense->amount);
+            $newAccount->decrement('current_balance', $expense->amount);
 
             DB::commit();
 
@@ -134,7 +142,7 @@ class ExpenseController extends Controller
         DB::beginTransaction();
         try {
             // Restore account balance
-            $expense->account->increment('balance', $expense->amount);
+            $expense->account()->lockForUpdate()->first()->increment('current_balance', $expense->amount);
 
             $expense->delete();
 

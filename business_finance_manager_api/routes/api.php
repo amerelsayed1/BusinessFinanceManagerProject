@@ -17,7 +17,10 @@ use App\Http\Controllers\{
     StockMovementController,
     PosOrderController,
     ShopifyController,
-    ProductCategoryController
+    ProductCategoryController,
+    IncomeController,
+    PurchaseController,
+    ReportsController
 };
 
 // API Version 1
@@ -69,6 +72,7 @@ Route::prefix('v1')->group(function () {
 
         // Dashboard
         Route::get('/dashboard', [DashboardController::class, 'index']);
+        Route::get('/dashboard/summary', [DashboardController::class, 'summary']);
 
         // Monthly Report
         Route::get('/monthly-report', [MonthlyReportController::class, 'show']);
@@ -84,6 +88,17 @@ Route::prefix('v1')->group(function () {
         // POS Orders
         Route::apiResource('pos-orders', PosOrderController::class)
             ->except(['update']);
+
+        // Incomes
+        Route::apiResource('incomes', IncomeController::class)
+            ->only(['index', 'store', 'show']);
+
+        // Purchases
+        Route::apiResource('purchases', PurchaseController::class)
+            ->only(['index', 'store', 'show', 'update']);
+
+        // Reports
+        Route::get('/reports/accountant-export', [ReportsController::class, 'accountantExport']);
 
         // Shopify Integration
         Route::prefix('shopify')->group(function () {
