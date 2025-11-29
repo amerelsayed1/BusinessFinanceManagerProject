@@ -8,7 +8,6 @@ use App\Models\ExpenseCategory;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
-use Tymon\JWTAuth\Facades\JWTAuth;
 
 class AuthController extends Controller
 {
@@ -44,7 +43,7 @@ class AuthController extends Controller
             ]);
         }
 
-        $token = JWTAuth::fromUser($user);
+        $token = auth('api')->login($user);
 
         return response()->json([
             'message' => 'User registered successfully',
@@ -57,11 +56,20 @@ class AuthController extends Controller
     {
         $credentials = $request->only('email', 'password');
 
-        if (!$token = JWTAuth::attempt($credentials)) {
+        $validator = Validator::make($credentials, [
+            'email' => 'required|email',
+            'password' => 'required|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json($validator->errors(), 422);
+        }
+
+        if (!$token = auth('api')->attempt($credentials)) {
             return response()->json(['error' => 'Invalid credentials'], 401);
         }
 
-        $user = auth()->user();
+        $user = auth('api')->user();
 
         return response()->json([
             'token' => $token,
@@ -78,13 +86,13 @@ class AuthController extends Controller
 
     public function logout()
     {
-        JWTAuth::invalidate(JWTAuth::getToken());
+        auth('api')->logout();
         return response()->json(['message' => 'Successfully logged out']);
     }
 
     public function me()
     {
-        $user = auth()->user();
+        $user = auth('api')->user();
         return response()->json([
             'id' => $user->id,
             'name' => $user->name,
