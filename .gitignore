@@ -1,5 +1,8 @@
 # Workspace-wide ignores
 node_modules/
+.env
+.env.local
+.env.*
 .idea/
 .vscode/
 .DS_Store

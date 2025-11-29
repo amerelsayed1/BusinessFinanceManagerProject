@@ -49,79 +49,80 @@ class PosOrderController extends Controller
             return response()->json($validator->errors(), 422);
         }
 
-        $account = Account::where('id', $request->account_id)
-            ->where('user_id', auth()->id())
-            ->firstOrFail();
-
-        DB::beginTransaction();
         try {
-            $totalAmount = 0;
-            $productsToUpdate = [];
-
-            // First pass: validate and lock all products
-            foreach ($request->items as $item) {
-                $product = Product::where('id', $item['product_id'])
+            $order = DB::transaction(function () use ($request) {
+                $account = Account::where('id', $request->account_id)
                     ->where('user_id', auth()->id())
-                    ->lockForUpdate()
                     ->firstOrFail();
 
-                if ($product->current_stock < $item['quantity']) {
-                    throw new \Exception("Insufficient stock for product: {$product->name}");
+                $totalAmount = 0;
+                $productsToUpdate = [];
+
+                // First pass: validate and lock all products
+                foreach ($request->items as $item) {
+                    $product = Product::where('id', $item['product_id'])
+                        ->where('user_id', auth()->id())
+                        ->lockForUpdate()
+                        ->firstOrFail();
+
+                    if ($product->current_stock < $item['quantity']) {
+                        throw new \Exception("Insufficient stock for product: {$product->name}");
+                    }
+
+                    $productsToUpdate[] = [
+                        'product' => $product,
+                        'quantity' => $item['quantity'],
+                        'unit_price' => $item['unit_price']
+                    ];
+
+                    $totalAmount += $item['quantity'] * $item['unit_price'];
                 }
 
-                $productsToUpdate[] = [
-                    'product' => $product,
-                    'quantity' => $item['quantity'],
-                    'unit_price' => $item['unit_price']
-                ];
-
-                $totalAmount += $item['quantity'] * $item['unit_price'];
-            }
-
-            // Create POS Order
-            $order = PosOrder::create([
-                'user_id' => auth()->id(),
-                'account_id' => $request->account_id,
-                'date' => $request->date,
-                'total_amount' => $totalAmount,
-                'payment_method' => $request->payment_method,
-                'channel' => 'pos',
-                'note' => $request->note,
-            ]);
-
-            // Second pass: create items, movements, and update stock
-            foreach ($productsToUpdate as $data) {
-                $product = $data['product'];
-                $quantity = $data['quantity'];
-                $unitPrice = $data['unit_price'];
-                $totalLineAmount = $quantity * $unitPrice;
-
-                // Create order item
-                PosOrderItem::create([
-                    'pos_order_id' => $order->id,
-                    'product_id' => $product->id,
-                    'quantity' => $quantity,
-                    'unit_price' => $unitPrice,
-                    'total_line_amount' => $totalLineAmount,
-                ]);
-
-                // Create stock movement
-                StockMovement::create([
-                    'product_id' => $product->id,
-                    'type' => 'pos_sale',
-                    'quantity' => -$quantity,
+                // Create POS Order
+                $order = PosOrder::create([
+                    'user_id' => auth()->id(),
+                    'account_id' => $request->account_id,
                     'date' => $request->date,
-                    'note' => "POS Order #{$order->id}",
+                    'total_amount' => $totalAmount,
+                    'payment_method' => $request->payment_method,
+                    'channel' => 'pos',
+                    'note' => $request->note,
                 ]);
 
-                // Update stock atomically in same transaction
-                $product->decrement('current_stock', $quantity);
-            }
+                // Second pass: create items, movements, and update stock
+                foreach ($productsToUpdate as $data) {
+                    $product = $data['product'];
+                    $quantity = $data['quantity'];
+                    $unitPrice = $data['unit_price'];
+                    $totalLineAmount = $quantity * $unitPrice;
 
-            // Increase account balance
-            $account->increment('current_balance', $totalAmount);
+                    // Create order item
+                    PosOrderItem::create([
+                        'pos_order_id' => $order->id,
+                        'product_id' => $product->id,
+                        'quantity' => $quantity,
+                        'unit_price' => $unitPrice,
+                        'total_line_amount' => $totalLineAmount,
+                    ]);
 
-            DB::commit();
+                    // Create stock movement
+                    StockMovement::create([
+                        'product_id' => $product->id,
+                        'type' => 'pos_sale',
+                        'quantity' => -$quantity,
+                        'date' => $request->date,
+                        'note' => "POS Order #{$order->id}",
+                    ]);
+
+                    // Update stock atomically in same transaction
+                    $product->decrement('current_stock', $quantity);
+                }
+
+                // Increase account balance
+                $account->increment('current_balance', $totalAmount);
+
+                return $order;
+            });
 
             $order->load(['items.product', 'account']);
 
@@ -131,7 +132,6 @@ class PosOrderController extends Controller
             ], 201);
 
         } catch (\Exception $e) {
-            DB::rollBack();
             return response()->json(['error' => 'Failed to create order: ' . $e->getMessage()], 500);
         }
     }
@@ -149,30 +149,31 @@ class PosOrderController extends Controller
     {
         $order = PosOrder::where('user_id', auth()->id())->findOrFail($id);
 
-        DB::beginTransaction();
         try {
-            // Reverse account balance
-            $order->account->decrement('current_balance', $order->total_amount);
+            DB::transaction(function () use ($order) {
+                // Reverse account balance
+                $order->account->decrement('current_balance', $order->total_amount);
 
-            // Reverse stock movements
-            foreach ($order->items as $item) {
-                StockMovement::create([
-                    'product_id' => $item->product_id,
-                    'type' => 'adjustment',
-                    'quantity' => $item->quantity, // positive to restore stock
-                    'date' => now(),
-                    'note' => "Reversal of POS Order #{$order->id}",
-                ]);
-            }
+                // Reverse stock movements and Restore Stock
+                foreach ($order->items as $item) {
+                    StockMovement::create([
+                        'product_id' => $item->product_id,
+                        'type' => 'adjustment',
+                        'quantity' => $item->quantity, // positive to restore stock
+                        'date' => now(),
+                        'note' => "Reversal of POS Order #{$order->id}",
+                    ]);
 
-            $order->delete();
+                    // FIX: Actually restore the product stock count
+                    Product::where('id', $item->product_id)->increment('current_stock', $item->quantity);
+                }
 
-            DB::commit();
+                $order->delete();
+            });
 
             return response()->json(['message' => 'POS order deleted successfully']);
 
         } catch (\Exception $e) {
-            DB::rollBack();
             return response()->json(['error' => 'Failed to delete order: ' . $e->getMessage()], 500);
         }
     }
