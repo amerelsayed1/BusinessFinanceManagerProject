@@ -5,28 +5,21 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
-/**
- * App\Models\Account
- *
- * @property int $id
- * @property string $name
- * @property float $balance
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
- * @method static Builder|Account find($id)
- * @method static Builder|Account orderBy($id)
- * @method static Builder|Account findOrFail($id)
- * @method static Builder|Account where($column, $operator = null, $value = null)
- * @method static Builder|Account create(array $attributes = [])
- * @mixin Builder
- */
 class Account extends Model
 {
-    protected $fillable = ['user_id', 'name', 'balance'];
+    protected $fillable = ['user_id', 'name', 'type', 'opening_balance', 'current_balance'];
 
     protected $casts = [
-        'balance' => 'float',
+        'opening_balance' => 'decimal:2',
+        'current_balance' => 'decimal:2',
     ];
+
+    protected $appends = ['balance'];
+
+    public function getBalanceAttribute()
+    {
+        return $this->current_balance;
+    }
 
     public function expenses()
     {
@@ -41,5 +34,15 @@ class Account extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function incomes()
+    {
+        return $this->hasMany(Income::class);
+    }
+
+    public function purchases()
+    {
+        return $this->hasMany(Purchase::class);
     }
 }

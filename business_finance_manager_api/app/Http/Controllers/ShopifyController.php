@@ -233,7 +233,7 @@ class ShopifyController extends Controller
                     }
 
                     // Increase account balance
-                    $account->increment('balance', $order->total_amount);
+                    $account->increment('current_balance', $order->total_amount);
 
                     $synced++;
                 }

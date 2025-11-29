@@ -9,6 +9,12 @@ const routes = [
     meta: { guest: true },
   },
   {
+    path: '/register',
+    name: 'Register',
+    component: () => import('@/views/Register.vue'),
+    meta: { guest: true },
+  },
+  {
     path: '/',
     name: 'Dashboard',
     component: () => import('@/views/Dashboard.vue'),
@@ -21,15 +27,21 @@ const routes = [
     meta: { requiresAuth: true },
   },
   {
-    path: '/profile',
-    name: 'Profile',
-    component: () => import('@/views/ProfileSettings.vue'),
+    path: '/expenses',
+    name: 'Expenses',
+    component: () => import('@/views/ExpensesPage.vue'),
     meta: { requiresAuth: true },
   },
   {
-    path: '/transfers',
-    name: 'Transfers',
-    component: () => import('@/views/AccountTransfers.vue'),
+    path: '/income',
+    name: 'Income',
+    component: () => import('@/views/IncomePage.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/purchases',
+    name: 'Purchases',
+    component: () => import('@/views/PurchasesPage.vue'),
     meta: { requiresAuth: true },
   },
   {
@@ -39,22 +51,22 @@ const routes = [
     meta: { requiresAuth: true },
   },
   {
-    path: '/inventory',
-    name: 'Inventory',
-    component: () => import('@/views/Inventory.vue'),
+    path: '/transfers',
+    name: 'Transfers',
+    component: () => import('@/views/AccountTransfers.vue'),
     meta: { requiresAuth: true },
   },
   {
-    path: '/pos',
-    name: 'POS',
-    component: () => import('@/views/POS.vue'),
+    path: '/reports',
+    name: 'Reports',
+    component: () => import('@/views/ReportsExport.vue'),
     meta: { requiresAuth: true },
   },
   {
-    path: '/register',
-    name: 'Register',
-    component: () => import('@/views/Register.vue'),
-    meta: { guest: true },
+    path: '/profile',
+    name: 'Profile',
+    component: () => import('@/views/ProfileSettings.vue'),
+    meta: { requiresAuth: true },
   },
 ]
 

@@ -73,7 +73,7 @@ class BillController extends Controller
 
             if ($data['status'] === 'paid') {
                 $account->lockForUpdate();
-                $account->balance -= $data['amount'];
+                $account->current_balance -= $data['amount'];
                 $account->save();
             }
 
@@ -119,7 +119,7 @@ class BillController extends Controller
                     ->lockForUpdate()
                     ->findOrFail($bill->account_id);
                 // Revert original balance impact
-                $originalAccount->balance += $bill->amount;
+                $originalAccount->current_balance += $bill->amount;
                 $originalAccount->save();
             }
 
@@ -141,7 +141,7 @@ class BillController extends Controller
                 $newAccount = Account::where('user_id', auth()->id())
                     ->lockForUpdate()
                     ->findOrFail($bill->account_id);
-                $newAccount->balance -= $bill->amount;
+                $newAccount->current_balance -= $bill->amount;
                 $newAccount->save();
             }
 
@@ -165,7 +165,7 @@ class BillController extends Controller
             $account = Account::where('user_id', auth()->id())->lockForUpdate()->find($bill->account_id);
 
             if ($bill->status === 'paid' && $account) {
-                $account->balance += $bill->amount;
+                $account->current_balance += $bill->amount;
                 $account->save();
             }
 
@@ -197,9 +197,9 @@ class BillController extends Controller
 
             if ($account) {
                 if ($oldStatus !== 'paid' && $newStatus === 'paid') {
-                    $account->balance -= $bill->amount;
+                    $account->current_balance -= $bill->amount;
                 } elseif ($oldStatus === 'paid' && $newStatus !== 'paid') {
-                    $account->balance += $bill->amount;
+                    $account->current_balance += $bill->amount;
                 }
                 $account->save();
             }

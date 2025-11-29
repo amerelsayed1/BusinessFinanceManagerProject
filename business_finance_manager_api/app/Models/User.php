@@ -3,12 +3,14 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Tymon\JWTAuth\Contracts\JWTSubject;
 
 /**
  * @method static where(string $string, mixed $email)
+ * @method static updateOrCreate(string[] $array, array $array1)
  */
 class User extends Authenticatable implements JWTSubject
 {
@@ -21,6 +23,8 @@ class User extends Authenticatable implements JWTSubject
         'business_name',
         'business_logo',
         'default_currency',
+        'is_admin',
+        'is_protected',
     ];
 
     protected $hidden = [
@@ -67,7 +71,7 @@ class User extends Authenticatable implements JWTSubject
 
     public function monthlySales()
     {
-        return $this->hasMany(MonthlySales::class);
+        return $this->hasMany(MonthlySale::class);
     }
 
     public function products()
@@ -80,8 +84,26 @@ class User extends Authenticatable implements JWTSubject
         return $this->hasMany(PosOrder::class);
     }
 
+    public function incomes()
+    {
+        return $this->hasMany(Income::class);
+    }
+
     public function shopifySettings()
     {
         return $this->hasOne(ShopifySettings::class);
+    }
+
+    protected static function booted(): void
+    {
+        static::deleting(function (User $user) {
+            if ($user->email === 'admin@admin.com' || $user->is_protected) {
+                throw new HttpResponseException(
+                    response()->json([
+                        'message' => 'The default admin user cannot be deleted.',
+                    ], 403),
+                );
+            }
+        });
     }
 }

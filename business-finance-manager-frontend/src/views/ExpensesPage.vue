@@ -1,176 +1,280 @@
 <script setup>
-import { ref, watch } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import expenseService from '../services/expenseService'
+import accountService from '../services/accountService'
+import api from '../services/api'
+import ModalDialog from '../components/ModalDialog.vue'
+import { formatDateTime } from '../utils/date'
+import { useStore } from 'vuex'
 
-const props = defineProps({
-  currency: { type: String, required: true },
-  accounts: { type: Array, required: true },
-  monthLabel: { type: String, required: true },
-  expenses: { type: Array, required: true },
-  totalForMonth: { type: Number, required: true },
+const store = useStore()
+const currency = computed(() => store.getters['auth/defaultCurrency'])
+
+const accounts = ref([])
+const categories = ref([])
+const expenses = ref([])
+const loading = ref(false)
+const error = ref('')
+
+const filters = ref({
+  from: new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+    .toISOString()
+    .slice(0, 10),
+  to: new Date().toISOString().slice(0, 10),
+  category_id: '',
 })
-
-const emit = defineEmits([
-  'prev-month',
-  'next-month',
-  'add-expense',
-  'delete-expense',
-])
 
 const form = ref({
-  description: '',
+  date: new Date().toISOString().slice(0, 10),
+  account_id: '',
+  category_id: '',
   amount: '',
-  date: new Date().toISOString().split('T')[0],
-  accountId: '',
-  isAds: false,
+  note: '',
 })
 
-watch(
-  () => props.accounts,
-  (list) => {
-    if (list.length > 0 && !form.value.accountId) {
-      form.value.accountId = String(list[0].id)
-    }
-  },
-  { immediate: true },
-)
+const showEditModal = ref(false)
+const selectedExpense = ref(null)
+const editForm = ref({
+  date: '',
+  account_id: '',
+  category_id: '',
+  amount: '',
+  note: '',
+})
 
-const submitExpense = () => {
-  emit('add-expense', { ...form.value })
+const loadAccounts = async () => {
+  const response = await accountService.getAll()
+  accounts.value = response.data
+  if (accounts.value.length && !form.value.account_id) {
+    form.value.account_id = accounts.value[0].id
+  }
 }
+
+const loadCategories = async () => {
+  const response = await api.get('/expense-categories')
+  categories.value = response.data
+  if (categories.value.length && !form.value.category_id) {
+    form.value.category_id = categories.value[0].id
+  }
+}
+
+const loadExpenses = async () => {
+  loading.value = true
+  error.value = ''
+  try {
+    const response = await expenseService.getAll(null, {
+      from: filters.value.from,
+      to: filters.value.to,
+      category_id: filters.value.category_id || undefined,
+    })
+    expenses.value = response.data
+  } catch (e) {
+    error.value = e.response?.data?.message || 'Failed to load expenses.'
+  } finally {
+    loading.value = false
+  }
+}
+
+const submitExpense = async () => {
+  try {
+    await expenseService.create(form.value)
+    await loadExpenses()
+    form.value.note = ''
+    form.value.amount = ''
+    window.alert('Expense added successfully')
+  } catch (e) {
+    error.value = e.response?.data?.message || 'Could not create expense.'
+  }
+}
+
+const startEdit = (expense) => {
+  selectedExpense.value = expense
+  editForm.value = {
+    date: expense.date,
+    account_id: expense.account_id,
+    category_id: expense.category_id,
+    amount: expense.amount,
+    note: expense.note || '',
+  }
+  showEditModal.value = true
+}
+
+const closeEdit = () => {
+  showEditModal.value = false
+  selectedExpense.value = null
+  editForm.value = {
+    date: '',
+    account_id: '',
+    category_id: '',
+    amount: '',
+    note: '',
+  }
+}
+
+const updateExpense = async () => {
+  if (!selectedExpense.value) return
+  try {
+    await expenseService.update(selectedExpense.value.id, editForm.value)
+    await loadExpenses()
+    closeEdit()
+    window.alert('Expense updated successfully')
+  } catch (e) {
+    error.value = e.response?.data?.message || 'Could not update expense.'
+  }
+}
+
+const deleteExpense = async (id) => {
+  if (!confirm('Are you sure you want to delete this expense?')) return
+  try {
+    await expenseService.delete(id)
+    expenses.value = expenses.value.filter((e) => e.id !== id)
+    window.alert('Expense deleted successfully')
+  } catch (e) {
+    error.value = e.response?.data?.message || 'Could not delete expense.'
+  }
+}
+
+onMounted(async () => {
+  await Promise.all([loadAccounts(), loadCategories()])
+  loadExpenses()
+})
 </script>
 
 <template>
-  <div class="bg-white rounded-lg shadow-lg p-4 md:p-6">
-    <div class="flex justify-between items-center mb-6">
-      <h2 class="text-2xl font-bold text-gray-800">Expenses</h2>
-      <div class="flex items-center gap-2">
-        <button
-          type="button"
-          class="px-2 py-1 border rounded hover:bg-gray-100"
-          @click="emit('prev-month')"
-        >
-          ‹
-        </button>
-        <span class="font-semibold text-gray-700 whitespace-nowrap">
-          {{ monthLabel }}
-        </span>
-        <button
-          type="button"
-          class="px-2 py-1 border rounded hover:bg-gray-100"
-          @click="emit('next-month')"
-        >
-          ›
-        </button>
+  <div class="space-y-6">
+    <div class="flex items-center justify-between">
+      <div>
+        <h1 class="text-2xl font-semibold text-gray-900">Expenses</h1>
+        <p class="text-sm text-gray-500">Track spending by category and account.</p>
       </div>
     </div>
 
-    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-      <p class="text-sm text-gray-600">Total Expenses ({{ monthLabel }})</p>
-      <p class="text-3xl font-bold text-blue-600">
-        {{ totalForMonth.toFixed(2) }} {{ currency }}
-      </p>
+    <div v-if="error" class="p-3 bg-red-100 text-red-700 rounded">{{ error }}</div>
+
+    <div class="bg-white p-4 rounded-lg shadow-sm border space-y-3">
+      <h2 class="text-lg font-semibold">Filters</h2>
+      <div class="grid gap-3 md:grid-cols-4">
+        <div class="flex flex-col gap-1">
+          <label class="text-sm text-gray-700">From</label>
+          <input v-model="filters.from" type="date" class="border rounded px-3 py-2" />
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-sm text-gray-700">To</label>
+          <input v-model="filters.to" type="date" class="border rounded px-3 py-2" />
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-sm text-gray-700">Category</label>
+          <select v-model="filters.category_id" class="border rounded px-3 py-2">
+            <option value="">All</option>
+            <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
+          </select>
+        </div>
+        <div class="flex items-end">
+          <button class="bg-blue-600 text-white px-4 py-2 rounded" @click="loadExpenses">Apply</button>
+        </div>
+      </div>
     </div>
 
-    <div class="space-y-4 mb-6">
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <input
-          v-model="form.description"
-          type="text"
-          placeholder="Description"
-          class="border rounded px-4 py-2"
-        />
-        <input
-          v-model="form.amount"
-          type="number"
-          placeholder="Amount"
-          class="border rounded px-4 py-2"
-        />
+    <div class="bg-white p-4 rounded-lg shadow-sm border space-y-3">
+      <h2 class="text-lg font-semibold">Add Expense</h2>
+      <div class="grid gap-3 md:grid-cols-2">
+        <div class="flex flex-col gap-1">
+          <label class="text-sm text-gray-700">Date</label>
+          <input v-model="form.date" type="date" class="border rounded px-3 py-2" />
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-sm text-gray-700">Amount</label>
+          <input v-model.number="form.amount" type="number" min="0" class="border rounded px-3 py-2" />
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-sm text-gray-700">Account</label>
+          <select v-model="form.account_id" class="border rounded px-3 py-2">
+            <option v-for="acc in accounts" :key="acc.id" :value="acc.id">{{ acc.name }}</option>
+          </select>
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-sm text-gray-700">Category</label>
+          <select v-model="form.category_id" class="border rounded px-3 py-2">
+            <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
+          </select>
+        </div>
+        <div class="md:col-span-2 flex flex-col gap-1">
+          <label class="text-sm text-gray-700">Note</label>
+          <textarea v-model="form.note" rows="2" class="border rounded px-3 py-2"></textarea>
+        </div>
       </div>
-
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <input
-          v-model="form.date"
-          type="date"
-          class="border rounded px-4 py-2"
-        />
-        <select v-model="form.accountId" class="border rounded px-4 py-2">
-          <option
-            v-for="acc in accounts"
-            :key="acc.id"
-            :value="acc.id.toString()"
-          >
-            {{ acc.name }}
-          </option>
-        </select>
+      <div>
+        <button class="bg-green-600 text-white px-4 py-2 rounded" @click="submitExpense">Save Expense</button>
       </div>
-
-      <div class="flex items-center gap-2">
-        <input
-          id="isAds"
-          v-model="form.isAds"
-          type="checkbox"
-          class="h-4 w-4"
-        />
-        <label for="isAds" class="text-sm text-gray-700">
-          This is an Ads cost
-        </label>
-      </div>
-
-      <button
-        type="button"
-        class="w-full bg-blue-500 text-white rounded px-4 py-2 hover:bg-blue-600 font-semibold"
-        @click="submitExpense"
-      >
-        Add Expense
-      </button>
     </div>
 
-    <div class="overflow-x-auto">
-      <table class="w-full">
-        <thead class="bg-gray-100">
-          <tr>
-            <th class="text-left p-3 text-sm">Description</th>
-            <th class="text-left p-3 text-sm">Amount</th>
-            <th class="text-left p-3 text-sm">Date</th>
-            <th class="text-left p-3 text-sm">Account</th>
-            <th class="text-left p-3 text-sm">Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr
-            v-for="exp in expenses"
-            :key="exp.id"
-            class="border-b hover:bg-gray-50"
-          >
-            <td class="p-3">{{ exp.description }}</td>
-            <td class="p-3">
-              {{ Number(exp.amount || 0).toFixed(2) }} {{ currency }}
-            </td>
-            <td class="p-3">{{ exp.date }}</td>
-            <td class="p-3 text-sm text-blue-600">
-              {{
-                (accounts.find(a => a.id === Number(exp.account_id ?? exp.accountId)) || {}).name
-                  || 'Unknown'
-              }}
-            </td>
-            <td class="p-3">
-              <button
-                type="button"
-                class="text-red-500 hover:text-red-700 text-sm"
-                @click="emit('delete-expense', exp)"
-              >
-                Delete
-              </button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-      <p
-        v-if="expenses.length === 0"
-        class="text-center text-gray-500 py-6 text-sm"
-      >
-        No expenses for this month.
-      </p>
+    <div class="bg-white p-4 rounded-lg shadow-sm border">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-lg font-semibold">Expense List</h2>
+        <span class="text-sm text-gray-600">{{ expenses.length }} items</span>
+      </div>
+      <div v-if="loading" class="text-gray-600">Loading expenses...</div>
+      <div v-else class="overflow-x-auto">
+        <table class="w-full text-left">
+          <thead>
+            <tr class="bg-gray-100 text-sm">
+              <th class="p-2">Date</th>
+              <th class="p-2">Account</th>
+              <th class="p-2">Category</th>
+              <th class="p-2">Amount</th>
+              <th class="p-2">Note</th>
+              <th class="p-2 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="item in expenses" :key="item.id" class="border-b align-top">
+              <td class="p-2">{{ formatDateTime(item.date) }}</td>
+              <td class="p-2">{{ item.account?.name || accounts.find(a => a.id === item.account_id)?.name }}</td>
+              <td class="p-2">{{ item.category?.name || categories.find(c => c.id === item.category_id)?.name }}</td>
+              <td class="p-2 font-semibold">{{ Number(item.amount || 0).toFixed(2) }} {{ currency }}</td>
+              <td class="p-2 text-sm text-gray-600">{{ item.note }}</td>
+              <td class="p-2 text-right space-x-3 whitespace-nowrap">
+                <button class="text-blue-600" @click="startEdit(item)">Edit</button>
+                <button class="text-red-600" @click="deleteExpense(item.id)">Delete</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <p v-if="!expenses.length" class="text-gray-500 text-sm py-4">No expenses found.</p>
+      </div>
     </div>
+
+    <ModalDialog v-model:modelValue="showEditModal" title="Edit Expense" @close="closeEdit">
+      <div class="grid gap-3 md:grid-cols-2">
+        <div class="flex flex-col gap-1">
+          <label class="text-sm text-gray-700">Date</label>
+          <input v-model="editForm.date" type="date" class="border rounded px-3 py-2" />
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-sm text-gray-700">Amount</label>
+          <input v-model.number="editForm.amount" type="number" min="0" class="border rounded px-3 py-2" />
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-sm text-gray-700">Account</label>
+          <select v-model="editForm.account_id" class="border rounded px-3 py-2">
+            <option v-for="acc in accounts" :key="acc.id" :value="acc.id">{{ acc.name }}</option>
+          </select>
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-sm text-gray-700">Category</label>
+          <select v-model="editForm.category_id" class="border rounded px-3 py-2">
+            <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
+          </select>
+        </div>
+        <div class="md:col-span-2 flex flex-col gap-1">
+          <label class="text-sm text-gray-700">Note</label>
+          <textarea v-model="editForm.note" rows="2" class="border rounded px-3 py-2"></textarea>
+        </div>
+      </div>
+      <template #footer>
+        <button class="px-4 py-2 border rounded" @click="closeEdit">Cancel</button>
+        <button class="px-4 py-2 bg-blue-600 text-white rounded" @click="updateExpense">Save</button>
+      </template>
+    </ModalDialog>
   </div>
 </template>
