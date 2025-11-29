@@ -119,7 +119,7 @@ class PosOrderController extends Controller
             }
 
             // Increase account balance
-            $account->increment('balance', $totalAmount);
+            $account->increment('current_balance', $totalAmount);
 
             DB::commit();
 
@@ -152,7 +152,7 @@ class PosOrderController extends Controller
         DB::beginTransaction();
         try {
             // Reverse account balance
-            $order->account->decrement('balance', $order->total_amount);
+            $order->account->decrement('current_balance', $order->total_amount);
 
             // Reverse stock movements
             foreach ($order->items as $item) {

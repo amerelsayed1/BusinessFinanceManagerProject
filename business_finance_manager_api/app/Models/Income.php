@@ -4,18 +4,15 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class Expense extends Model
+class Income extends Model
 {
     protected $fillable = [
         'user_id',
         'account_id',
-        'category_id',
-        'amount',
         'date',
-        'description',
+        'amount',
+        'note',
     ];
-
-    protected $appends = ['note'];
 
     protected $casts = [
         'date' => 'date',
@@ -30,20 +27,5 @@ class Expense extends Model
     public function account()
     {
         return $this->belongsTo(Account::class);
-    }
-
-    public function category()
-    {
-        return $this->belongsTo(ExpenseCategory::class, 'category_id');
-    }
-
-    public function stockMovement()
-    {
-        return $this->hasOne(StockMovement::class);
-    }
-
-    public function getNoteAttribute()
-    {
-        return $this->description;
     }
 }

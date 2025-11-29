@@ -1,7 +1,7 @@
 <?php
 namespace App\Http\Controllers;
 
-use App\Models\MonthlySales;
+use App\Models\MonthlySale;
 use App\Models\Expense;
 use App\Models\ExpenseCategory;
 use App\Models\Invoice;
@@ -26,9 +26,9 @@ class MonthlyReportController extends Controller
         $endDate = Carbon::create($year, $month, 1)->endOfMonth();
 
         // Total Sales
-        $monthlySales = MonthlySales::where('user_id', $userId)
-            ->where('month', $month)
-            ->where('year', $year)
+        $monthlySales = MonthlySale::where('user_id', $userId)
+            ->whereMonth('month', $month)
+            ->whereYear('month', $year)
             ->first();
 
         $posSales = PosOrder::where('user_id', $userId)

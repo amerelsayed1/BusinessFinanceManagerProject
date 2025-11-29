@@ -17,7 +17,10 @@ use App\Http\Controllers\{
     StockMovementController,
     PosOrderController,
     ShopifyController,
-    ProductCategoryController
+    ProductCategoryController,
+    IncomeController,
+    PurchaseController,
+    ReportsController
 };
 
 // API Version 1
@@ -41,11 +44,14 @@ Route::prefix('v1')->group(function () {
             ->except(['show']);
 
         // Account Transfers
-        Route::apiResource('transfers', AccountTransferController::class)
-            ->except(['update']);
+        Route::prefix('accounts')->group(function () {
+            Route::apiResource('transfers', AccountTransferController::class)
+                ->except(['create', 'edit'])
+                ->where(['transfer' => '[0-9]+']);
+        });
 
         // Accounts
-        Route::apiResource('accounts', AccountController::class);
+        Route::apiResource('accounts', AccountController::class)->whereNumber('account');
         Route::post('/accounts/deposit', [AccountController::class, 'deposit']);
         Route::post('/accounts/withdraw', [AccountController::class, 'withdraw']);
         Route::post('/accounts/transfer', [AccountController::class, 'transfer']);
@@ -69,6 +75,7 @@ Route::prefix('v1')->group(function () {
 
         // Dashboard
         Route::get('/dashboard', [DashboardController::class, 'index']);
+        Route::get('/dashboard/summary', [DashboardController::class, 'summary']);
 
         // Monthly Report
         Route::get('/monthly-report', [MonthlyReportController::class, 'show']);
@@ -84,6 +91,16 @@ Route::prefix('v1')->group(function () {
         // POS Orders
         Route::apiResource('pos-orders', PosOrderController::class)
             ->except(['update']);
+
+        // Incomes
+        Route::apiResource('incomes', IncomeController::class);
+
+        // Purchases
+        Route::apiResource('purchases', PurchaseController::class)
+            ->except(['create', 'edit']);
+
+        // Reports
+        Route::get('/reports/accountant-export', [ReportsController::class, 'accountantExport']);
 
         // Shopify Integration
         Route::prefix('shopify')->group(function () {

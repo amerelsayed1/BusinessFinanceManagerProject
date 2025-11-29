@@ -28,13 +28,18 @@ class AccountController extends Controller
     {
         $data = $request->validate([
             'name'    => 'required|string|max:255',
-            'balance' => 'nullable|numeric|min:0',
+            'type' => 'nullable|string|max:50',
+            'opening_balance' => 'nullable|numeric|min:0',
         ]);
+
+        $openingBalance = $data['opening_balance'] ?? 0;
 
         $account = Account::create([
             'user_id' => auth()->id(),
             'name'    => $data['name'],
-            'balance' => $data['balance'] ?? 0,
+            'type' => $data['type'] ?? 'cash',
+            'opening_balance' => $openingBalance,
+            'current_balance' => $openingBalance,
         ]);
 
         return response()->json($account, 201);
@@ -46,7 +51,9 @@ class AccountController extends Controller
 
         $data = $request->validate([
             'name'    => 'sometimes|required|string|max:255',
-            'balance' => 'sometimes|nullable|numeric|min:0',
+            'type' => 'sometimes|nullable|string|max:50',
+            'current_balance' => 'sometimes|numeric|min:0',
+            'opening_balance' => 'sometimes|numeric|min:0',
         ]);
 
         $account->update($data);
@@ -58,10 +65,9 @@ class AccountController extends Controller
     {
         $account = Account::where('user_id', auth()->id())->findOrFail($id);
 
-        // Check if account has related expenses or bills
-        if ($account->expenses()->exists() || $account->bills()->exists()) {
+        if ($account->expenses()->exists() || $account->bills()->exists() || $account->incomes()->exists() || $account->purchases()->exists()) {
             return response()->json([
-                'message' => 'Cannot delete account with existing expenses or bills'
+                'message' => 'Cannot delete account with existing linked records'
             ], 422);
         }
 
@@ -83,7 +89,7 @@ class AccountController extends Controller
 
         DB::transaction(function () use ($account, $data) {
             $account->lockForUpdate();
-            $account->balance = ($account->balance ?? 0) + $data['amount'];
+            $account->current_balance = ($account->current_balance ?? 0) + $data['amount'];
             $account->save();
         });
 
@@ -99,8 +105,7 @@ class AccountController extends Controller
 
         $account = Account::where('user_id', auth()->id())->findOrFail($data['account_id']);
 
-        // Check if sufficient balance
-        if ($account->balance < $data['amount']) {
+        if ($account->current_balance < $data['amount']) {
             return response()->json([
                 'message' => 'Insufficient balance'
             ], 422);
@@ -108,7 +113,7 @@ class AccountController extends Controller
 
         DB::transaction(function () use ($account, $data) {
             $account->lockForUpdate();
-            $account->balance -= $data['amount'];
+            $account->current_balance -= $data['amount'];
             $account->save();
         });
 
@@ -126,20 +131,18 @@ class AccountController extends Controller
         $fromAccount = Account::where('user_id', auth()->id())->findOrFail($data['from_account_id']);
         $toAccount = Account::where('user_id', auth()->id())->findOrFail($data['to_account_id']);
 
-        // Check if sufficient balance
-        if ($fromAccount->balance < $data['amount']) {
+        if ($fromAccount->current_balance < $data['amount']) {
             return response()->json([
                 'message' => 'Insufficient balance in source account'
             ], 422);
         }
 
         DB::transaction(function () use ($fromAccount, $toAccount, $data) {
-            // Lock both accounts to prevent race conditions
             $fromAccount->lockForUpdate();
             $toAccount->lockForUpdate();
 
-            $fromAccount->balance -= $data['amount'];
-            $toAccount->balance += $data['amount'];
+            $fromAccount->current_balance -= $data['amount'];
+            $toAccount->current_balance += $data['amount'];
 
             $fromAccount->save();
             $toAccount->save();
@@ -159,7 +162,7 @@ class AccountController extends Controller
         return response()->json([
             'account_id' => $account->id,
             'name' => $account->name,
-            'balance' => $account->balance,
+            'balance' => $account->current_balance,
         ]);
     }
 }

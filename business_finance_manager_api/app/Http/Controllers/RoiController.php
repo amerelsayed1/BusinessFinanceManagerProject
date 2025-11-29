@@ -1,7 +1,7 @@
 <?php
 namespace App\Http\Controllers;
 
-use App\Models\MonthlySales;
+use App\Models\MonthlySale;
 use App\Models\Expense;
 use App\Models\ExpenseCategory;
 use App\Models\PosOrder;
@@ -33,9 +33,9 @@ class ROIController extends Controller
         $endDate = Carbon::create($year, $month, 1)->endOfMonth();
 
         // Get total sales from monthly_sales table
-        $monthlySales = MonthlySales::where('user_id', $userId)
-            ->where('month', $month)
-            ->where('year', $year)
+        $monthlySales = MonthlySale::where('user_id', $userId)
+            ->whereMonth('month', $month)
+            ->whereYear('month', $year)
             ->first();
 
         // Also add POS sales for the month

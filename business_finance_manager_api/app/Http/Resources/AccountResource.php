@@ -11,7 +11,9 @@ class AccountResource extends JsonResource
         return [
             'id' => $this->id,
             'name' => $this->name,
-            'balance' => (float) $this->balance,
+            'type' => $this->type,
+            'opening_balance' => (float) $this->opening_balance,
+            'current_balance' => (float) $this->current_balance,
             'createdAt' => $this->created_at->toIso8601String(),
             'updatedAt' => $this->updated_at->toIso8601String(),
         ];
