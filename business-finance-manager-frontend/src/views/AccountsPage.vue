@@ -1,111 +1,103 @@
 <script setup>
-import { ref } from 'vue'
+import { onMounted, ref, computed } from 'vue'
+import accountService from '../services/accountService'
+import { useStore } from 'vuex'
 
-const props = defineProps({
-  currency: { type: String, required: true },
-  accounts: { type: Array, required: true },
+const store = useStore()
+const currency = computed(() => store.getters['auth/defaultCurrency'])
+
+const accounts = ref([])
+const loading = ref(false)
+const error = ref('')
+
+const form = ref({
+  name: '',
+  type: 'cash',
+  opening_balance: 0,
 })
 
-const emit = defineEmits(['create-account', 'delete-account', 'deposit'])
-
-const newAccountName = ref('')
-const newAccountInitialBalance = ref('')
-
-const depositAmounts = ref({})
-
-const submitAccount = () => {
-  const name = newAccountName.value.trim()
-  if (!name) {
-    alert('Please enter account name.')
-    return
+const loadAccounts = async () => {
+  loading.value = true
+  error.value = ''
+  try {
+    const response = await accountService.getAll()
+    accounts.value = response.data
+  } catch (e) {
+    error.value = e.response?.data?.message || 'Failed to load accounts.'
+  } finally {
+    loading.value = false
   }
-
-  emit('create-account', {
-    name,
-    initialBalance: newAccountInitialBalance.value,
-  })
-
-  newAccountName.value = ''
-  newAccountInitialBalance.value = ''
 }
 
-const submitDeposit = (accountId) => {
-  const raw = depositAmounts.value[accountId] ?? ''
-  if (!raw) return
-
-  emit('deposit', { accountId, amount: raw })
-  depositAmounts.value[accountId] = ''
+const createAccount = async () => {
+  if (!form.value.name) return
+  try {
+    await accountService.create(form.value)
+    form.value = { name: '', type: 'cash', opening_balance: 0 }
+    await loadAccounts()
+  } catch (e) {
+    error.value = e.response?.data?.message || 'Could not create account.'
+  }
 }
+
+const deleteAccount = async (id) => {
+  if (!confirm('Delete this account?')) return
+  try {
+    await accountService.delete(id)
+    await loadAccounts()
+  } catch (e) {
+    error.value = e.response?.data?.message || 'Could not delete account.'
+  }
+}
+
+onMounted(loadAccounts)
 </script>
 
 <template>
   <div class="space-y-6">
-    <div class="bg-white rounded-lg shadow-lg p-4 md:p-6">
-      <h2 class="text-xl font-bold text-gray-800 mb-4">Add Account</h2>
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <input
-          v-model="newAccountName"
-          type="text"
-          placeholder="Account name (e.g. Alahly Bank)"
-          class="border rounded px-4 py-2"
-        />
-        <input
-          v-model="newAccountInitialBalance"
-          type="number"
-          placeholder="Initial balance (optional)"
-          class="border rounded px-4 py-2"
-        />
-        <button
-          type="button"
-          class="bg-blue-600 text-white rounded px-4 py-2 font-semibold hover:bg-blue-700"
-          @click="submitAccount"
-        >
-          Add Account
-        </button>
+    <div class="flex items-center justify-between">
+      <div>
+        <h1 class="text-2xl font-semibold text-gray-900">Accounts</h1>
+        <p class="text-sm text-gray-500">Manage your cash, bank, and wallet balances.</p>
       </div>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-      <div
-        v-for="acc in accounts"
-        :key="acc.id"
-        class="bg-white rounded-lg shadow-lg p-6"
-      >
-        <div class="flex items-center justify-between mb-4">
-          <div>
-            <h3 class="text-lg font-bold text-gray-800">{{ acc.name }}</h3>
-            <p class="text-3xl font-bold text-blue-600 mt-2">
-              {{ Number(acc.balance || 0).toFixed(2) }} {{ currency }}
-            </p>
-          </div>
-          <button
-            type="button"
-            class="text-red-500 text-xs hover:text-red-700"
-            @click="emit('delete-account', acc)"
-          >
-            Delete
-          </button>
-        </div>
+    <div v-if="error" class="p-3 bg-red-100 text-red-700 rounded">{{ error }}</div>
 
-        <div class="mt-4">
-          <label class="text-sm text-gray-600 mb-2 block">Add Deposit</label>
-          <div class="flex gap-2">
-            <input
-              v-model="depositAmounts[acc.id]"
-              type="number"
-              placeholder="Amount"
-              class="border rounded px-3 py-2 flex-1"
-            />
-            <button
-              type="button"
-              class="bg-green-500 text-white rounded px-4 py-2 hover:bg-green-600 text-sm font-semibold"
-              @click="submitDeposit(acc.id)"
-            >
-              Add
-            </button>
+    <div class="bg-white p-4 rounded-lg shadow-sm border">
+      <h2 class="text-lg font-semibold mb-3">Create Account</h2>
+      <div class="grid gap-3 md:grid-cols-3">
+        <input v-model="form.name" type="text" placeholder="Account name" class="border rounded px-3 py-2" />
+        <select v-model="form.type" class="border rounded px-3 py-2">
+          <option value="cash">Cash</option>
+          <option value="bank">Bank</option>
+          <option value="wallet">Wallet</option>
+          <option value="other">Other</option>
+        </select>
+        <input v-model.number="form.opening_balance" type="number" class="border rounded px-3 py-2" placeholder="Opening balance" />
+      </div>
+      <div class="mt-3">
+        <button class="bg-blue-600 text-white px-4 py-2 rounded" @click="createAccount">Save</button>
+      </div>
+    </div>
+
+    <div class="bg-white p-4 rounded-lg shadow-sm border">
+      <h2 class="text-lg font-semibold mb-3">Your Accounts</h2>
+      <div v-if="loading" class="text-gray-600">Loading accounts...</div>
+      <div v-else class="grid gap-4 md:grid-cols-2">
+        <div v-for="account in accounts" :key="account.id" class="border rounded p-4">
+          <div class="flex justify-between items-start">
+            <div>
+              <p class="text-sm text-gray-500 uppercase">{{ account.type }}</p>
+              <p class="text-xl font-semibold">{{ account.name }}</p>
+            </div>
+            <button class="text-red-600 text-sm" @click="deleteAccount(account.id)">Delete</button>
           </div>
+          <p class="mt-2 text-sm text-gray-600">Opening balance: {{ Number(account.opening_balance || 0).toFixed(2) }} {{ currency }}</p>
+          <p class="mt-1 text-lg font-semibold">Current: {{ Number(account.current_balance || 0).toFixed(2) }} {{ currency }}</p>
         </div>
       </div>
+      <p v-if="!loading && !accounts.length" class="text-gray-500 text-sm">No accounts yet.</p>
     </div>
   </div>
 </template>

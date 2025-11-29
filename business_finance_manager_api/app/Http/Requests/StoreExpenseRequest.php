@@ -19,7 +19,7 @@ class StoreExpenseRequest extends FormRequest
             'category_id' => 'nullable|exists:expense_categories,id',
             'amount' => 'required|numeric|min:0.01',
             'date' => 'required|date',
-            'description' => 'nullable|string|max:1000',
+            'note' => 'nullable|string|max:1000',
         ];
     }
 
@@ -33,7 +33,7 @@ class StoreExpenseRequest extends FormRequest
             }
 
             // Verify sufficient balance
-            if ($account && $account->balance < $this->amount) {
+            if ($account && $account->current_balance < $this->amount) {
                 $validator->errors()->add('amount', 'Insufficient account balance.');
             }
         });

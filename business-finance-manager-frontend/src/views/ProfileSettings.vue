@@ -163,6 +163,7 @@
 
 <script>
 import api from '../services/api';
+import { useStore } from 'vuex';
 
 export default {
   name: 'ProfileSettings',
@@ -184,6 +185,11 @@ export default {
       saving: false,
     };
   },
+  computed: {
+    store() {
+      return useStore();
+    },
+  },
   mounted() {
     this.loadProfile();
     this.loadCategories();
@@ -193,6 +199,7 @@ export default {
       try {
         const response = await api.get('/me');
         this.profile = response.data;
+        this.store.commit('auth/SET_USER', response.data);
       } catch (error) {
         console.error('Failed to load profile:', error);
       }
@@ -200,7 +207,8 @@ export default {
     async updateProfile() {
       this.saving = true;
       try {
-        await api.put('/profile', this.profile);
+        const response = await api.put('/profile', this.profile);
+        this.store.commit('auth/SET_USER', response.data);
         alert('Profile updated successfully');
       } catch (error) {
         alert('Failed to update profile');
