@@ -13,7 +13,6 @@ use App\Http\Controllers\{
     ROIController,
     DashboardController,
     MonthlyReportController,
-    ProductController,
     StockMovementController,
     PosOrderController,
     ShopifyController,
