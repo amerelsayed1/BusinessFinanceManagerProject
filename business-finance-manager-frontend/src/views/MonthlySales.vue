@@ -90,7 +90,7 @@
       </div>
     </div>
 
-    <ModalDialog v-if="showModal" :title="modalTitle" @close="closeModal">
+    <ModalDialog v-model="showModal" :title="modalTitle" @close="closeModal">
       <form class="space-y-4" @submit.prevent="saveSale">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
@@ -101,6 +101,7 @@
               required
               class="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
             />
+            <p v-if="fieldErrors.month" class="mt-1 text-sm text-red-600">{{ displayFieldError('month') }}</p>
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700">Total Sales</label>
@@ -112,6 +113,7 @@
               required
               class="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
             />
+            <p v-if="fieldErrors.total_sales" class="mt-1 text-sm text-red-600">{{ displayFieldError('total_sales') }}</p>
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700">Product Cost</label>
@@ -123,6 +125,7 @@
               required
               class="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
             />
+            <p v-if="fieldErrors.product_cost" class="mt-1 text-sm text-red-600">{{ displayFieldError('product_cost') }}</p>
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700">Ads Expenses</label>
@@ -134,6 +137,7 @@
               required
               class="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
             />
+            <p v-if="fieldErrors.ads_expenses" class="mt-1 text-sm text-red-600">{{ displayFieldError('ads_expenses') }}</p>
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700">Logistics Cost</label>
@@ -144,6 +148,7 @@
               step="0.01"
               class="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
             />
+            <p v-if="fieldErrors.logistics_cost" class="mt-1 text-sm text-red-600">{{ displayFieldError('logistics_cost') }}</p>
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700">Platform Fees</label>
@@ -154,6 +159,7 @@
               step="0.01"
               class="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
             />
+            <p v-if="fieldErrors.platform_fees" class="mt-1 text-sm text-red-600">{{ displayFieldError('platform_fees') }}</p>
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700">Other Expenses</label>
@@ -164,6 +170,7 @@
               step="0.01"
               class="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
             />
+            <p v-if="fieldErrors.other_expenses" class="mt-1 text-sm text-red-600">{{ displayFieldError('other_expenses') }}</p>
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700">Notes</label>
@@ -172,6 +179,7 @@
               rows="3"
               class="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
             />
+            <p v-if="fieldErrors.notes" class="mt-1 text-sm text-red-600">{{ displayFieldError('notes') }}</p>
           </div>
         </div>
 
@@ -208,6 +216,7 @@ const showModal = ref(false)
 const editingSale = ref(null)
 const errorMessage = ref('')
 const successMessage = ref('')
+const fieldErrors = ref({})
 const yearFilter = ref(new Date().getFullYear())
 
 const defaultForm = () => ({
@@ -246,6 +255,7 @@ const loadSales = async () => {
 const openCreate = () => {
   editingSale.value = null
   form.value = defaultForm()
+  fieldErrors.value = {}
   showModal.value = true
 }
 
@@ -261,6 +271,7 @@ const startEdit = (sale) => {
     other_expenses: Number(sale.other_expenses ?? 0),
     notes: sale.notes || '',
   }
+  fieldErrors.value = {}
   showModal.value = true
 }
 
@@ -268,12 +279,20 @@ const closeModal = () => {
   showModal.value = false
   editingSale.value = null
   form.value = defaultForm()
+  fieldErrors.value = {}
+}
+
+const displayFieldError = (field) => {
+  const message = fieldErrors.value[field]
+  if (!message) return ''
+  return Array.isArray(message) ? message[0] : message
 }
 
 const saveSale = async () => {
   saving.value = true
   errorMessage.value = ''
   successMessage.value = ''
+  fieldErrors.value = {}
   const payload = {
     ...form.value,
     month: normalizeMonthPayload(form.value.month),
@@ -290,7 +309,12 @@ const saveSale = async () => {
     await loadSales()
     closeModal()
   } catch (error) {
-    errorMessage.value = error.response?.data?.message || 'Failed to save monthly sales.'
+    if (error.response?.status === 422) {
+      fieldErrors.value = error.response.data?.errors || {}
+      errorMessage.value = error.response.data?.message || 'Please fix the validation errors.'
+    } else {
+      errorMessage.value = error.response?.data?.message || 'Failed to save monthly sales.'
+    }
   } finally {
     saving.value = false
   }
