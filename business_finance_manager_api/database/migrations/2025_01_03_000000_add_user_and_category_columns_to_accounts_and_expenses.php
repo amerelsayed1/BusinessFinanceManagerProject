@@ -17,12 +17,6 @@ return new class extends Migration {
             if (!Schema::hasColumn('expenses', 'user_id')) {
                 $table->foreignId('user_id')->nullable()->after('id')->constrained()->cascadeOnDelete();
             }
-
-            if (!Schema::hasColumn('expenses', 'category_id')) {
-                $table->foreignId('category_id')->nullable()->after('account_id')
-                    ->constrained('expense_categories')
-                    ->nullOnDelete();
-            }
         });
     }
 
