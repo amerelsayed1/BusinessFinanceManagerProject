@@ -70,7 +70,7 @@ class User extends Authenticatable implements JWTSubject
 
     public function monthlySales()
     {
-        return $this->hasMany(MonthlySales::class);
+        return $this->hasMany(MonthlySale::class);
     }
 
     public function products()

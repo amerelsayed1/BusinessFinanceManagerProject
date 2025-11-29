@@ -3,105 +3,121 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\MonthlySales;
+use App\Http\Resources\MonthlySaleResource;
+use App\Models\MonthlySale;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
+use Illuminate\Http\Resources\Json\ResourceCollection;
+use Illuminate\Http\Response;
 
 class MonthlySalesController extends Controller
 {
-    public function index()
+    public function index(Request $request): ResourceCollection
     {
-        $sales = MonthlySales::where('user_id', auth()->id())
-            ->orderBy('year', 'desc')
-            ->orderBy('month', 'desc')
-            ->get()
-            ->map(function ($sale) {
-                return [
-                    'id' => $sale->id,
-                    'date' => $sale->date,
-                    'month' => $sale->month,
-                    'year' => $sale->year,
-                    'total_sales' => $sale->total_sales,
-                ];
-            });
+        $user = $request->user();
+        $query = MonthlySale::where('user_id', $user->id)
+            ->orderBy('month', 'desc');
 
-        return response()->json($sales);
+        if ($request->filled('year')) {
+            $query->whereYear('month', $request->integer('year'));
+        }
+
+        return MonthlySaleResource::collection($query->get());
     }
 
     public function store(Request $request)
     {
-        $validator = Validator::make($request->all(), [
-            'month' => 'required|integer|min:1|max:12',
-            'year' => 'required|integer|min:2000|max:2100',
-            'total_sales' => 'required|numeric|min:0',
-        ]);
+        $data = $this->validateData($request, true);
+        $normalizedMonth = $this->normalizeMonth($data['month']);
+        $attributes = $this->mapAttributes($data, $request->user()->id, $normalizedMonth);
 
-        if ($validator->fails()) {
-            return response()->json($validator->errors(), 422);
-        }
+        $monthlySale = MonthlySale::updateOrCreate(
+            ['user_id' => $request->user()->id, 'month' => $normalizedMonth->toDateString()],
+            $attributes
+        );
 
-        // Check if record already exists
-        $existing = MonthlySales::where('user_id', auth()->id())
-            ->where('month', $request->month)
-            ->where('year', $request->year)
-            ->first();
+        $status = $monthlySale->wasRecentlyCreated ? 201 : 200;
 
-        if ($existing) {
-            return response()->json(['error' => 'Sales record for this month already exists'], 409);
-        }
-
-        $sales = MonthlySales::create([
-            'user_id' => auth()->id(),
-            'month' => $request->month,
-            'year' => $request->year,
-            'total_sales' => $request->total_sales,
-        ]);
-
-        return response()->json([
-            'message' => 'Monthly sales created successfully',
-            'sales' => [
-                'id' => $sales->id,
-                'date' => $sales->date,
-                'month' => $sales->month,
-                'year' => $sales->year,
-                'total_sales' => $sales->total_sales,
-            ],
-        ], 201);
+        return (new MonthlySaleResource($monthlySale->fresh()))
+            ->response()
+            ->setStatusCode($status);
     }
 
-    public function update(Request $request, $id)
+    public function show(Request $request, MonthlySale $monthlySale): MonthlySaleResource
     {
-        $sales = MonthlySales::where('user_id', auth()->id())->findOrFail($id);
+        $this->authorizeUser($request, $monthlySale);
 
-        $validator = Validator::make($request->all(), [
-            'month' => 'sometimes|integer|min:1|max:12',
-            'year' => 'sometimes|integer|min:2000|max:2100',
-            'total_sales' => 'sometimes|numeric|min:0',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json($validator->errors(), 422);
-        }
-
-        $sales->update($request->only(['month', 'year', 'total_sales']));
-
-        return response()->json([
-            'message' => 'Monthly sales updated successfully',
-            'sales' => [
-                'id' => $sales->id,
-                'date' => $sales->date,
-                'month' => $sales->month,
-                'year' => $sales->year,
-                'total_sales' => $sales->total_sales,
-            ],
-        ]);
+        return new MonthlySaleResource($monthlySale);
     }
 
-    public function destroy($id)
+    public function update(Request $request, MonthlySale $monthlySale)
     {
-        $sales = MonthlySales::where('user_id', auth()->id())->findOrFail($id);
-        $sales->delete();
+        $this->authorizeUser($request, $monthlySale);
 
-        return response()->json(['message' => 'Monthly sales deleted successfully']);
+        $data = $this->validateData($request, false);
+
+        if (isset($data['month'])) {
+            $data['month'] = $this->normalizeMonth($data['month'])->toDateString();
+        }
+
+        $monthlySale->update($this->mapAttributes($data, $request->user()->id, $data['month'] ?? $monthlySale->month));
+
+        return new MonthlySaleResource($monthlySale->fresh());
+    }
+
+    public function destroy(Request $request, MonthlySale $monthlySale): Response
+    {
+        $this->authorizeUser($request, $monthlySale);
+
+        $monthlySale->delete();
+
+        return response()->noContent();
+    }
+
+    private function authorizeUser(Request $request, MonthlySale $monthlySale): void
+    {
+        if ($monthlySale->user_id !== $request->user()->id) {
+            abort(404);
+        }
+    }
+
+    private function normalizeMonth(string $month): Carbon
+    {
+        if (preg_match('/^\d{4}-\d{2}$/', $month)) {
+            $month .= '-01';
+        }
+
+        return Carbon::parse($month)->startOfMonth();
+    }
+
+    private function validateData(Request $request, bool $isStore): array
+    {
+        $rules = [
+            'month' => [$isStore ? 'required' : 'sometimes', 'date'],
+            'total_sales' => [$isStore ? 'required' : 'sometimes', 'numeric', 'min:0'],
+            'product_cost' => [$isStore ? 'required' : 'sometimes', 'numeric', 'min:0'],
+            'ads_expenses' => [$isStore ? 'required' : 'sometimes', 'numeric', 'min:0'],
+            'logistics_cost' => ['nullable', 'numeric', 'min:0'],
+            'platform_fees' => ['nullable', 'numeric', 'min:0'],
+            'other_expenses' => ['nullable', 'numeric', 'min:0'],
+            'notes' => ['nullable', 'string'],
+        ];
+
+        return $request->validate($rules);
+    }
+
+    private function mapAttributes(array $data, int $userId, $month): array
+    {
+        return [
+            'user_id' => $userId,
+            'month' => is_string($month) ? $month : Carbon::parse($month)->toDateString(),
+            'total_sales' => $data['total_sales'] ?? 0,
+            'product_cost' => $data['product_cost'] ?? 0,
+            'ads_expenses' => $data['ads_expenses'] ?? 0,
+            'logistics_cost' => $data['logistics_cost'] ?? 0,
+            'platform_fees' => $data['platform_fees'] ?? 0,
+            'other_expenses' => $data['other_expenses'] ?? 0,
+            'notes' => $data['notes'] ?? null,
+        ];
     }
 }

@@ -25,7 +25,7 @@ const store = useStore()
 const router = useRouter()
 const route = useRoute()
 
-const accountingRoutes = ['Income', 'Expenses', 'Purchases', 'Transfers', 'AccountTransfers']
+const accountingRoutes = ['Income', 'Expenses', 'Purchases', 'Transfers', 'AccountTransfers', 'MonthlySales']
 const isAccountingOpen = ref(false)
 const isCollapsed = ref(localStorage.getItem('sidebarCollapsed') === 'true')
 const isMobileOpen = ref(false)
@@ -48,6 +48,7 @@ const accountingLinks = [
   { label: 'Expenses', icon: Receipt, routeName: 'Expenses' },
   { label: 'Purchases', icon: ShoppingCart, routeName: 'Purchases' },
   { label: 'Transfers', icon: ArrowLeftRight, routeName: 'Transfers' },
+  { label: 'Monthly Sales', icon: BadgeDollarSign, routeName: 'MonthlySales' },
 ]
 
 const settingsLinks = [{ label: 'Profile', icon: UserRoundCog, routeName: 'Profile' }]
