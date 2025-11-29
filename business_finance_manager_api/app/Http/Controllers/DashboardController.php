@@ -7,7 +7,7 @@ namespace App\Http\Controllers;
 use App\Models\Account;
 use App\Models\Expense;
 use App\Models\Invoice;
-use App\Models\MonthlySales;
+use App\Models\MonthlySale;
 use App\Models\ExpenseCategory;
 use App\Models\Income;
 use App\Models\Purchase;
@@ -45,9 +45,9 @@ class DashboardController extends Controller
             ->sum('amount');
 
         // ROI Calculation
-        $monthlySales = MonthlySales::where('user_id', $userId)
-            ->where('month', $now->month)
-            ->where('year', $now->year)
+        $monthlySales = MonthlySale::where('user_id', $userId)
+            ->whereMonth('month', $now->month)
+            ->whereYear('month', $now->year)
             ->first();
 
         $posSales = PosOrder::where('user_id', $userId)
